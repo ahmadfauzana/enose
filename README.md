@@ -69,30 +69,5 @@ The script will automate the entire process:
 5.  Display comprehensive visualizations comparing the prediction results.
 6.  Print a final, detailed summary and classification table.
 
-## Example Output
-The script generates a final classification table for the unclassified samples, identifying the most confident model and its predictions.
-
-**Final Classification Results Table:**
-```
- Sample_ID Predicted_Class  Confidence         Model_Used
-        X1              Ad       0.982  Random Forest (Tuned)
-        X2              WF       0.999  Random Forest (Tuned)
-        X3              Ad       0.915  Random Forest (Tuned)
-        X4              WF       0.997  Random Forest (Tuned)
-        X5              Ad       0.970  Random Forest (Tuned)
-        X6              UF       0.938  Random Forest (Tuned)
-        X7              UF       0.999  Random Forest (Tuned)
-        X8              WF       0.997  Random Forest (Tuned)
-        X9              UF       0.996  Random Forest (Tuned)
-       X10              WF       0.994  Random Forest (Tuned)
-```
-
-**Prediction Summary:**
-```
-- Ad: 3/10 samples (30.0%)
-- UF: 3/10 samples (30.0%)
-- WF: 4/10 samples (40.0%)
-```
-
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
