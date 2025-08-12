@@ -1,0 +1,111 @@
+sample_id,model,predicted_class,confidence,model_type
+X1,Random Forest,UF,1.0,original
+X2,Random Forest,UF,1.0,original
+X3,Random Forest,UF,0.98,original
+X4,Random Forest,UF,0.98,original
+X5,Random Forest,UF,0.99,original
+X6,Random Forest,WF,0.74,original
+X7,Random Forest,WF,1.0,original
+X8,Random Forest,WF,0.74,original
+X9,Random Forest,Ad,0.99,original
+X10,Random Forest,Ad,1.0,original
+X1,Support Vector Machine,UF,0.622664848787222,original
+X2,Support Vector Machine,UF,0.7237975215759296,original
+X3,Support Vector Machine,UF,0.670959502015496,original
+X4,Support Vector Machine,UF,0.8679492261270735,original
+X5,Support Vector Machine,UF,0.8746585449796928,original
+X6,Support Vector Machine,WF,0.947714495425252,original
+X7,Support Vector Machine,WF,0.9716013442797091,original
+X8,Support Vector Machine,WF,0.9064511725470596,original
+X9,Support Vector Machine,Ad,0.9852634960223642,original
+X10,Support Vector Machine,Ad,0.9748126187698853,original
+X1,Logistic Regression,UF,0.9999999587956704,original
+X2,Logistic Regression,UF,0.9999994956088285,original
+X3,Logistic Regression,UF,0.841400146659877,original
+X4,Logistic Regression,UF,0.8625468814779178,original
+X5,Logistic Regression,UF,0.8841627624684201,original
+X6,Logistic Regression,WF,0.9981531042760948,original
+X7,Logistic Regression,WF,0.9996192079196955,original
+X8,Logistic Regression,WF,0.9986406061042166,original
+X9,Logistic Regression,Ad,0.9670531705603107,original
+X10,Logistic Regression,Ad,0.9499724715664367,original
+X1,Gradient Boosting,UF,0.9999984768336075,original
+X2,Gradient Boosting,UF,0.9999984768336075,original
+X3,Gradient Boosting,UF,0.9999984768336075,original
+X4,Gradient Boosting,UF,0.9999984768336075,original
+X5,Gradient Boosting,UF,0.9999984768336075,original
+X6,Gradient Boosting,WF,0.9999986835541192,original
+X7,Gradient Boosting,WF,0.9999986835541192,original
+X8,Gradient Boosting,WF,0.9999986835541192,original
+X9,Gradient Boosting,Ad,0.9999990070049823,original
+X10,Gradient Boosting,Ad,0.9999990070049823,original
+X1,K-Nearest Neighbors,UF,1.0,original
+X2,K-Nearest Neighbors,UF,1.0,original
+X3,K-Nearest Neighbors,UF,0.6,original
+X4,K-Nearest Neighbors,UF,0.8,original
+X5,K-Nearest Neighbors,UF,0.8,original
+X6,K-Nearest Neighbors,WF,1.0,original
+X7,K-Nearest Neighbors,WF,1.0,original
+X8,K-Nearest Neighbors,WF,1.0,original
+X9,K-Nearest Neighbors,Ad,1.0,original
+X10,K-Nearest Neighbors,Ad,1.0,original
+X1,Naive Bayes,UF,1.0,original
+X2,Naive Bayes,UF,1.0,original
+X3,Naive Bayes,UF,1.0,original
+X4,Naive Bayes,UF,1.0,original
+X5,Naive Bayes,UF,1.0,original
+X6,Naive Bayes,WF,0.9999999999999716,original
+X7,Naive Bayes,WF,1.0,original
+X8,Naive Bayes,WF,0.9999999999999982,original
+X9,Naive Bayes,Ad,1.0,original
+X10,Naive Bayes,Ad,0.9999999999994129,original
+X1,Neural Network,UF,0.9999999974051508,original
+X2,Neural Network,UF,0.9999999867143181,original
+X3,Neural Network,UF,0.9844304881137625,original
+X4,Neural Network,UF,0.9755104643141543,original
+X5,Neural Network,UF,0.9877768273335704,original
+X6,Neural Network,WF,0.9999670126871792,original
+X7,Neural Network,WF,0.9999984043927777,original
+X8,Neural Network,WF,0.9999621355744038,original
+X9,Neural Network,Ad,0.9698856325369429,original
+X10,Neural Network,Ad,0.998208365387836,original
+X1,Decision Tree,UF,1.0,original
+X2,Decision Tree,UF,1.0,original
+X3,Decision Tree,UF,1.0,original
+X4,Decision Tree,UF,1.0,original
+X5,Decision Tree,UF,1.0,original
+X6,Decision Tree,WF,1.0,original
+X7,Decision Tree,WF,1.0,original
+X8,Decision Tree,WF,1.0,original
+X9,Decision Tree,Ad,1.0,original
+X10,Decision Tree,Ad,1.0,original
+X1,Random Forest (Tuned),UF,1.0,tuned
+X2,Random Forest (Tuned),UF,1.0,tuned
+X3,Random Forest (Tuned),UF,0.96,tuned
+X4,Random Forest (Tuned),UF,0.98,tuned
+X5,Random Forest (Tuned),UF,0.98,tuned
+X6,Random Forest (Tuned),WF,0.8,tuned
+X7,Random Forest (Tuned),WF,1.0,tuned
+X8,Random Forest (Tuned),WF,0.8,tuned
+X9,Random Forest (Tuned),Ad,1.0,tuned
+X10,Random Forest (Tuned),Ad,1.0,tuned
+X1,Support Vector Machine (Tuned),UF,0.6244705399268367,tuned
+X2,Support Vector Machine (Tuned),UF,0.7327035828841859,tuned
+X3,Support Vector Machine (Tuned),UF,0.7314358854670553,tuned
+X4,Support Vector Machine (Tuned),UF,0.9067289982395105,tuned
+X5,Support Vector Machine (Tuned),UF,0.8985091638648577,tuned
+X6,Support Vector Machine (Tuned),WF,0.9553925386746608,tuned
+X7,Support Vector Machine (Tuned),WF,0.9764225103465847,tuned
+X8,Support Vector Machine (Tuned),WF,0.913571666289081,tuned
+X9,Support Vector Machine (Tuned),Ad,0.9866069398121845,tuned
+X10,Support Vector Machine (Tuned),Ad,0.9702565130734799,tuned
+X1,Gradient Boosting (Tuned),UF,0.5462262603701001,tuned
+X2,Gradient Boosting (Tuned),UF,0.5462262603701001,tuned
+X3,Gradient Boosting (Tuned),UF,0.5462262603701001,tuned
+X4,Gradient Boosting (Tuned),UF,0.5462262603701,tuned
+X5,Gradient Boosting (Tuned),UF,0.5462262603701,tuned
+X6,Gradient Boosting (Tuned),WF,0.5507177531890983,tuned
+X7,Gradient Boosting (Tuned),WF,0.6030485376779674,tuned
+X8,Gradient Boosting (Tuned),WF,0.5507177531890983,tuned
+X9,Gradient Boosting (Tuned),Ad,0.6994618588504291,tuned
+X10,Gradient Boosting (Tuned),Ad,0.6994618588504291,tuned
