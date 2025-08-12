@@ -1,0 +1,97 @@
+================================================================================
+E-NOSE COCOA BEAN CLASSIFICATION - COMPREHENSIVE ANALYSIS REPORT
+================================================================================
+Analysis Date: 2025-08-12 13:36:52
+Timestamp: 20250812_133600
+================================================================================
+
+DATASET OVERVIEW:
+----------------------------------------
+Training Samples: 130
+  - WF: 40
+  - Ad: 60
+  - UF: 30
+Unclassified Samples: 10 (X1-X10)
+Features: 14 sensor channels (ch0-ch13)
+
+BEST PERFORMING MODEL:
+----------------------------------------
+Model: Decision Tree
+Average Confidence: 1.0
+
+FINAL CLASSIFICATION RESULTS:
+----------------------------------------
+Sample_ID Predicted_Class  Confidence    Model_Used
+       X1              UF         1.0 Decision Tree
+       X2              UF         1.0 Decision Tree
+       X3              UF         1.0 Decision Tree
+       X4              UF         1.0 Decision Tree
+       X5              UF         1.0 Decision Tree
+       X6              WF         1.0 Decision Tree
+       X7              WF         1.0 Decision Tree
+       X8              WF         1.0 Decision Tree
+       X9              Ad         1.0 Decision Tree
+      X10              Ad         1.0 Decision Tree
+
+PREDICTION DISTRIBUTION:
+----------------------------------------
+Ad: 2/10 samples (20.0%)
+UF: 5/10 samples (50.0%)
+WF: 3/10 samples (30.0%)
+
+TOP 10 MOST IMPORTANT SENSOR CHANNELS:
+----------------------------------------
+ 1. ch12: 0.1686
+ 2. ch0: 0.1338
+ 3. ch6: 0.1302
+ 4. ch11: 0.1193
+ 5. ch3: 0.1007
+ 6. ch7: 0.0997
+ 7. ch9: 0.0853
+ 8. ch1: 0.0414
+ 9. ch10: 0.0393
+10. ch8: 0.0361
+
+FILES GENERATED:
+----------------------------------------
+Individual Plots (High Resolution PNG):
+  01. Class Distribution: 01_class_distribution_20250812_133600.png
+  02. Sample Distribution: 02_sample_distribution_20250812_133600.png
+  03. Correlation Matrix: 03_correlation_matrix_20250812_133600.png
+  04. Sensor Boxplot: 04_sensor_boxplot_20250812_133600.png
+  05. Feature Importance: 05_feature_importance_20250812_133600.png
+  06. PCA Visualization: 06_pca_visualization_20250812_133600.png
+  07. Class Means Comparison: 07_class_means_comparison_20250812_133600.png
+  08. Model Confidence: 08_model_confidence_20250812_133600.png
+  09. Prediction Distribution: 09_prediction_distribution_20250812_133600.png
+  10. Model Agreement: 10_model_agreement_20250812_133600.png
+  11. Prediction Heatmap: 11_prediction_heatmap_20250812_133600.png
+  12-14. Confidence Distributions: 12_confidence_dist_*_20250812_133600.png
+  13. Per-Sample Confidence: 13_per_sample_confidence_20250812_133600.png
+  14. Consensus Predictions: 14_consensus_predictions_20250812_133600.png
+
+Data Files:
+  - final_classification_results_20250812_133600.csv
+  - all_predictions_20250812_133600.csv
+  - consensus_predictions_20250812_133600.csv
+  - model_performance_20250812_133600.csv
+  - hyperparameter_tuning_20250812_133600.csv
+  - class_means_20250812_133600.csv
+  - anova_results_20250812_133600.csv
+  - feature_comparison_20250812_133600.csv
+
+Log Files:
+  - analysis_log_20250812_133600.txt
+
+INTERPRETATION & RECOMMENDATIONS:
+----------------------------------------
+1. WF, Ad, UF represent different cocoa bean types/qualities
+2. X1-X10 samples have been classified into these categories
+3. Higher confidence scores indicate more reliable predictions
+4. Review samples with low confidence scores manually
+5. Validate results with domain experts
+6. Consider the top sensor channels for future measurements
+
+================================================================================
+END OF REPORT
+================================================================================

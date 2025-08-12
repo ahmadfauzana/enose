@@ -1,0 +1,9 @@
+E-NOSE COCOA BEAN CLASSIFICATION WITH MULTIPLE ML MODELS
+======================================================================
+Analysis started at: 2025-08-12 13:35:28
+Results will be saved to: enose_analysis_results
+======================================================================
+Loading and preprocessing data...
+
+❌ Error occurred during analysis: [Errno 2] No such file or directory: 'data enose_unseen.xlsx'
+Check the log file for detailed error information.

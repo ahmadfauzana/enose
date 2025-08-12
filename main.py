@@ -72,10 +72,10 @@ def load_and_preprocess_data():
     print("Loading and preprocessing data...")
     
     # Load training data (Sheet1)
-    train_data = pd.read_excel('data enose_unseen.xlsx', sheet_name='Sheet1')
+    train_data = pd.read_excel('data_enose_unseen.xlsx', sheet_name='Sheet1')
     
     # Load testing data (unseen) - these are unclassified cocoa bean samples
-    test_data = pd.read_excel('data enose_unseen.xlsx', sheet_name='unseen')
+    test_data = pd.read_excel('data_enose_unseen.xlsx', sheet_name='unseen')
     
     # Clean column names and handle the unnamed first column
     train_data.columns = ['class'] + [f'ch{i}' for i in range(14)]
@@ -330,7 +330,7 @@ def prepare_data_for_modeling(train_data, test_data, feature_cols):
     
     # Create validation split from training data (stratified)
     X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(
-        X_train_scaled, y_train, test_size=0.2, random_state=42, 
+        X_train_scaled, y_train, test_size=0.3, random_state=42, 
         stratify=y_train if len(y_train.unique()) > 1 else None
     )
     

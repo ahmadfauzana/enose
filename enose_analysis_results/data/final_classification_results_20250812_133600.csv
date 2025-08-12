@@ -1,0 +1,11 @@
+Sample_ID,Predicted_Class,Confidence,Model_Used
+X1,UF,1.0,Decision Tree
+X2,UF,1.0,Decision Tree
+X3,UF,1.0,Decision Tree
+X4,UF,1.0,Decision Tree
+X5,UF,1.0,Decision Tree
+X6,WF,1.0,Decision Tree
+X7,WF,1.0,Decision Tree
+X8,WF,1.0,Decision Tree
+X9,Ad,1.0,Decision Tree
+X10,Ad,1.0,Decision Tree
