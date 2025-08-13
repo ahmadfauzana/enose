@@ -1,0 +1,601 @@
+E-NOSE COCOA BEAN CLASSIFICATION WITH MULTIPLE ML MODELS
+======================================================================
+Analysis started at: 2025-08-13 12:14:39
+Results will be saved to: enose_analysis_results
+======================================================================
+Loading and preprocessing data...
+Training data shape: (130, 15)
+Testing data shape: (10, 15)
+Training classes: ['WF' 'Ad' 'UF']
+Training class distribution:
+class
+Ad    60
+WF    40
+UF    30
+Name: count, dtype: int64
+Unclassified samples to predict: ['X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8', 'X9', 'X10']
+
+==================================================
+EXPLORATORY DATA ANALYSIS
+==================================================
+
+Training Data Statistics:
+                ch0           ch1           ch2           ch3           ch4  ...           ch9          ch10          ch11          ch12         ch13
+count    130.000000    130.000000    130.000000    130.000000    130.000000  ...    130.000000    130.000000    130.000000    130.000000   130.000000
+mean   13402.608623   8637.869157  35541.863237  29018.411557  21133.992895  ...   9426.845392  12027.699238   5709.738687  32840.960504  3113.538550
+std     5706.669558   6821.888319  15313.220091   6633.968133   3242.775562  ...   4285.192774   4416.265356   2992.019310  14066.700902   613.814492
+min     5084.054294   2149.330500  12005.522719  16179.081820  13981.864820  ...   4002.401331   5779.140141   1239.243108   7375.124645  1968.592680
+25%     8743.633109   3810.997090  23452.329117  23784.036629  18847.541173  ...   6195.129527   8915.382847   3254.827742  21691.132706  2649.166114
+50%    11850.507517   5682.365827  34305.081014  28288.957495  21081.774061  ...   7980.967665  10357.040500   4873.540043  29783.920073  3122.696372
+75%    17740.814240  13994.722389  43496.155420  35684.980966  24135.856481  ...  12966.517925  14639.712642   8427.290890  44903.348458  3649.888319
+max    25508.871521  32783.814275  78648.664073  40549.214519  26565.280337  ...  21740.973078  24537.035018  13982.151828  65480.362365  4401.078142
+
+[8 rows x 14 columns]
+
+✅ Class distribution plot saved to: enose_analysis_results/plots/01_class_distribution_20250813_121439.png
+✅ Sample distribution plot saved to: enose_analysis_results/plots/02_sample_distribution_20250813_121439.png
+✅ Correlation matrix plot saved to: enose_analysis_results/plots/03_correlation_matrix_20250813_121439.png
+✅ Sensor boxplot saved to: enose_analysis_results/plots/04_sensor_boxplot_20250813_121439.png
+✅ Feature importance plot saved to: enose_analysis_results/plots/05_feature_importance_20250813_121439.png
+✅ PCA visualization plot saved to: enose_analysis_results/plots/06_pca_visualization_20250813_121439.png
+✅ Class means comparison plot saved to: enose_analysis_results/plots/07_class_means_comparison_20250813_121439.png
+
+Training Data Class-wise Feature Analysis:
+========================================
+
+Mean sensor values by class (training data):
+                ch0           ch1           ch2           ch3           ch4  ...           ch9          ch10         ch11          ch12         ch13
+class                                                                        ...                                                                    
+Ad     12859.733525   6794.706425  35911.282043  29440.178168  21554.430190  ...   8676.078927  11437.433164  5726.732348  32858.931317  3211.861946
+UF     22153.885628  19528.420378  54179.815027  38156.956179  25248.999945  ...  16126.008895  18596.052217  9925.320227  52707.128986  3747.762379
+WF      7653.463516   3234.699838  21009.271187  21531.853173  17417.081664  ...   5528.622462   7986.833613  2522.562039  17914.377922  2490.385587
+
+[3 rows x 14 columns]
+
+✅ Class means saved to: enose_analysis_results/data/class_means_20250813_121439.csv
+
+Class separability analysis (ANOVA F-statistic for each feature):
+ch0: F=409.75, p=4.05e-56
+ch1: F=291.55, p=3.41e-48
+ch2: F=105.40, p=1.05e-27
+ch3: F=328.68, p=6.16e-51
+ch4: F=238.43, p=1.00e-43
+ch5: F=19.04, p=5.87e-08
+ch6: F=385.25, p=1.19e-54
+ch7: F=315.63, p=5.28e-50
+ch8: F=256.77, p=2.38e-45
+ch9: F=331.53, p=3.89e-51
+ch10: F=228.25, p=8.86e-43
+ch11: F=277.01, p=4.85e-47
+ch12: F=276.06, p=5.79e-47
+ch13: F=87.62, p=1.23e-24
+
+✅ ANOVA results saved to: enose_analysis_results/data/anova_results_20250813_121439.csv
+
+Feature Distribution Comparison (Training vs Unclassified Samples):
+============================================================
+Feature  Train Mean   Test Mean    Train Std    Test Std    
+------------------------------------------------------------
+ch0      13402.61     16855.74     5684.68      9045.62     
+ch1      8637.87      13148.83     6795.60      11174.04    
+ch2      35541.86     30214.49     15254.21     11300.89    
+ch3      29018.41     32432.08     6608.40      9803.32     
+ch4      21133.99     23276.12     3230.28      4553.53     
+ch5      38953.30     37460.71     1732.70      2904.90     
+ch6      11602.30     14849.58     5036.30      7976.12     
+ch7      3805.61      5625.94      1894.52      3562.00     
+ch8      36588.69     52792.89     24825.62     43501.48    
+ch9      9426.85      12764.36     4268.68      6857.09     
+ch10     12027.70     14376.73     4399.25      6766.22     
+ch11     5709.74      7526.55      2980.49      3193.53     
+ch12     32840.96     35673.68     14012.49     18944.80    
+ch13     3113.54      3083.24      611.45       584.65      
+
+✅ Feature comparison saved to: enose_analysis_results/data/feature_comparison_20250813_121439.csv
+
+============================================================
+COMPREHENSIVE DATA ANALYSIS
+============================================================
+
+1. FEATURE DISTRIBUTION ANALYSIS BY CLASS
+--------------------------------------------------
+✅ Feature distributions by class saved to: enose_analysis_results/plots/15_feature_distributions_by_class_20250813_121439.png
+
+2. STATISTICAL SIGNIFICANCE ANALYSIS
+--------------------------------------------------
+ch0: F=409.75, p=4.05e-56, η²=0.866 (High significance)
+ch1: F=291.55, p=3.41e-48, η²=0.821 (High significance)
+ch2: F=105.40, p=1.05e-27, η²=0.624 (High significance)
+ch3: F=328.68, p=6.16e-51, η²=0.838 (High significance)
+ch4: F=238.43, p=1.00e-43, η²=0.790 (High significance)
+ch5: F=19.04, p=5.87e-08, η²=0.231 (High significance)
+ch6: F=385.25, p=1.19e-54, η²=0.858 (High significance)
+ch7: F=315.63, p=5.28e-50, η²=0.833 (High significance)
+ch8: F=256.77, p=2.38e-45, η²=0.802 (High significance)
+ch9: F=331.53, p=3.89e-51, η²=0.839 (High significance)
+ch10: F=228.25, p=8.86e-43, η²=0.782 (High significance)
+ch11: F=277.01, p=4.85e-47, η²=0.814 (High significance)
+ch12: F=276.06, p=5.79e-47, η²=0.813 (High significance)
+ch13: F=87.62, p=1.23e-24, η²=0.580 (High significance)
+
+✅ Detailed statistical analysis saved to: enose_analysis_results/data/detailed_statistical_analysis_20250813_121439.csv
+
+3. OUTLIER DETECTION AND ANALYSIS
+--------------------------------------------------
+✅ Outlier analysis plot saved to: enose_analysis_results/plots/16_outlier_analysis_20250813_121439.png
+Z-score outliers (>3σ): 3 samples affected
+IQR outliers: 12 samples affected
+Most problematic features (Z-score): ['ch1', 'ch8', 'ch5']
+
+4. DATA QUALITY ASSESSMENT
+--------------------------------------------------
+✅ Data quality metrics saved to: enose_analysis_results/data/data_quality_metrics_20250813_121439.csv
+Low variance features: 2
+Highly skewed features (|skew| > 2): 0
+
+5. CLASS SEPARABILITY ANALYSIS
+--------------------------------------------------
+✅ Class separability analysis saved to: enose_analysis_results/plots/17_class_separability_20250813_121439.png
+✅ Class separability results saved to: enose_analysis_results/data/class_separability_20250813_121439.csv
+Most separable features: ['ch0', 'ch6', 'ch3']
+Least separable features: ['ch13', 'ch2', 'ch5']
+
+6. DOMAIN SHIFT ANALYSIS (TRAIN VS TEST)
+--------------------------------------------------
+ch0: KS=0.300 (p=3.18e-01), Cohen's d=-0.579 (Low risk)
+ch1: KS=0.300 (p=3.18e-01), Cohen's d=-0.630 (Low risk)
+ch2: KS=0.238 (p=6.01e-01), Cohen's d=0.354 (Low risk)
+ch3: KS=0.354 (p=1.58e-01), Cohen's d=-0.497 (Low risk)
+ch4: KS=0.392 (p=8.90e-02), Cohen's d=-0.643 (Low risk)
+ch5: KS=0.300 (p=3.18e-01), Cohen's d=0.815 (Low risk)
+ch6: KS=0.315 (p=2.64e-01), Cohen's d=-0.615 (Low risk)
+ch7: KS=0.385 (p=1.00e-01), Cohen's d=-0.890 (Low risk)
+ch8: KS=0.300 (p=3.18e-01), Cohen's d=-0.613 (Low risk)
+ch9: KS=0.369 (p=1.27e-01), Cohen's d=-0.744 (Low risk)
+ch10: KS=0.277 (p=4.13e-01), Cohen's d=-0.512 (Low risk)
+ch11: KS=0.408 (p=6.94e-02), Cohen's d=-0.607 (Low risk)
+ch12: KS=0.262 (p=4.84e-01), Cohen's d=-0.197 (Low risk)
+ch13: KS=0.138 (p=9.86e-01), Cohen's d=0.050 (Low risk)
+
+✅ Domain shift analysis saved to: enose_analysis_results/data/domain_shift_analysis_20250813_121439.csv
+
+7. FEATURE CORRELATION IMPACT ANALYSIS
+--------------------------------------------------
+ch0: Pearson=-0.309, Spearman=-0.422
+ch1: Pearson=-0.138, Spearman=-0.414
+ch2: Pearson=-0.352, Spearman=-0.409
+ch3: Pearson=-0.438, Spearman=-0.449
+ch4: Pearson=-0.480, Spearman=-0.441
+ch5: Pearson=-0.460, Spearman=-0.479
+ch6: Pearson=-0.295, Spearman=-0.421
+ch7: Pearson=-0.171, Spearman=-0.404
+ch8: Pearson=-0.114, Spearman=-0.359
+ch9: Pearson=-0.231, Spearman=-0.426
+ch10: Pearson=-0.256, Spearman=-0.428
+ch11: Pearson=-0.384, Spearman=-0.463
+ch12: Pearson=-0.380, Spearman=-0.463
+ch13: Pearson=-0.449, Spearman=-0.381
+
+✅ Target correlation analysis saved to: enose_analysis_results/data/target_correlation_analysis_20250813_121439.csv
+
+==================================================
+DATA PREPARATION
+==================================================
+Training set size: (91, 14)
+Validation set size: (39, 14)
+Unclassified samples to predict: (10, 14)
+Sample IDs: ['X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8', 'X9', 'X10']
+
+==================================================
+MODEL TRAINING AND EVALUATION
+==================================================
+
+Training Random Forest...
+Validation Accuracy: 0.9744
+Validation F1-Score: 0.9741
+CV Accuracy: 0.9778 (+/- 0.0544)
+
+Training Support Vector Machine...
+Validation Accuracy: 0.9744
+Validation F1-Score: 0.9741
+CV Accuracy: 0.9673 (+/- 0.0883)
+
+Training Logistic Regression...
+Validation Accuracy: 0.9744
+Validation F1-Score: 0.9741
+CV Accuracy: 0.9889 (+/- 0.0444)
+
+Training Gradient Boosting...
+Validation Accuracy: 0.9487
+Validation F1-Score: 0.9488
+CV Accuracy: 0.9778 (+/- 0.0544)
+
+Training K-Nearest Neighbors...
+Validation Accuracy: 0.9744
+Validation F1-Score: 0.9741
+CV Accuracy: 0.9778 (+/- 0.0544)
+
+Training Naive Bayes...
+Validation Accuracy: 0.9744
+Validation F1-Score: 0.9747
+CV Accuracy: 0.9450 (+/- 0.0703)
+
+Training Neural Network...
+Validation Accuracy: 0.9487
+Validation F1-Score: 0.9477
+CV Accuracy: 0.9667 (+/- 0.0889)
+
+Training Decision Tree...
+Validation Accuracy: 0.9744
+Validation F1-Score: 0.9741
+CV Accuracy: 0.9778 (+/- 0.0544)
+
+✅ Model performance results saved to: enose_analysis_results/data/model_performance_20250813_121439.csv
+
+==================================================
+HYPERPARAMETER TUNING
+==================================================
+
+Tuning Random Forest...
+Best parameters: {'max_depth': None, 'min_samples_split': 2, 'n_estimators': 50}
+Best CV score: 0.8927
+
+Tuning Support Vector Machine...
+Best parameters: {'C': 1, 'gamma': 'scale', 'kernel': 'rbf'}
+Best CV score: 0.9005
+
+Tuning Gradient Boosting...
+Best parameters: {'learning_rate': 0.01, 'max_depth': 3, 'n_estimators': 50}
+Best CV score: 0.9154
+
+✅ Hyperparameter tuning results saved to: enose_analysis_results/data/hyperparameter_tuning_20250813_121439.csv
+
+============================================================
+COMPREHENSIVE FEATURE IMPORTANCE ANALYSIS
+============================================================
+
+1. BUILT-IN FEATURE IMPORTANCE
+----------------------------------------
+Random Forest: Built-in importance calculated
+  Computing permutation importance for Support Vector Machine...
+Support Vector Machine: Permutation importance calculated
+Logistic Regression: Coefficients importance calculated
+Gradient Boosting: Built-in importance calculated
+  Computing permutation importance for K-Nearest Neighbors...
+K-Nearest Neighbors: Permutation importance calculated
+  Computing permutation importance for Naive Bayes...
+Naive Bayes: Permutation importance calculated
+  Computing permutation importance for Neural Network...
+Neural Network: Permutation importance calculated
+Decision Tree: Built-in importance calculated
+Random Forest (Tuned): Built-in importance calculated
+  Computing permutation importance for Support Vector Machine (Tuned)...
+Support Vector Machine (Tuned): Permutation importance calculated
+Gradient Boosting (Tuned): Built-in importance calculated
+
+2. STATISTICAL FEATURE SELECTION
+----------------------------------------
+Statistical feature selection methods calculated
+
+3. CREATING FEATURE IMPORTANCE VISUALIZATIONS
+----------------------------------------
+✅ Feature importance heatmap saved to: enose_analysis_results/plots/18_feature_importance_heatmap_20250813_121439.png
+✅ Individual feature importance plots saved to: enose_analysis_results/plots/19_individual_feature_importance_20250813_121439.png
+✅ Feature ranking comparison saved to: enose_analysis_results/plots/20_feature_ranking_comparison_20250813_121439.png
+
+4. CONSENSUS FEATURE IMPORTANCE ANALYSIS
+----------------------------------------
+✅ Consensus feature importance saved to: enose_analysis_results/plots/21_consensus_feature_importance_20250813_121439.png
+
+✅ Comprehensive feature importance saved to: enose_analysis_results/data/comprehensive_feature_importance_20250813_121439.csv
+
+5. FEATURE IMPORTANCE SUMMARY
+----------------------------------------
+TOP 5 MOST CONSISTENTLY IMPORTANT FEATURES:
+1. ch0: Average rank 3.2
+   Scores across methods:
+     Random Forest: 0.1325
+     Support Vector Machine: 0.0338
+     Logistic Regression: 0.5531
+     Gradient Boosting: 0.1224
+     K-Nearest Neighbors: 0.0600
+
+2. ch6: Average rank 4.3
+   Scores across methods:
+     Random Forest: 0.0838
+     Support Vector Machine: 0.0223
+     Logistic Regression: 0.4981
+     Gradient Boosting: 0.0878
+     K-Nearest Neighbors: 0.0562
+
+3. ch12: Average rank 5.1
+   Scores across methods:
+     Random Forest: 0.1315
+     Support Vector Machine: 0.0246
+     Logistic Regression: 0.5284
+     Gradient Boosting: 0.4767
+     K-Nearest Neighbors: 0.0362
+
+4. ch11: Average rank 5.2
+   Scores across methods:
+     Random Forest: 0.1322
+     Support Vector Machine: 0.0346
+     Logistic Regression: 0.5690
+     Gradient Boosting: 0.0000
+     K-Nearest Neighbors: 0.0538
+
+5. ch3: Average rank 6.4
+   Scores across methods:
+     Random Forest: 0.0978
+     Support Vector Machine: 0.0338
+     Logistic Regression: 0.5344
+     Gradient Boosting: 0.0000
+     K-Nearest Neighbors: 0.0569
+
+
+==================================================
+PREDICTING UNCLASSIFIED SAMPLES
+==================================================
+
+Random Forest:
+Average Prediction Confidence: 0.9390
+  X1: UF (confidence: 1.000)
+  X2: UF (confidence: 1.000)
+  X3: UF (confidence: 0.960)
+  X4: UF (confidence: 0.970)
+  X5: UF (confidence: 0.990)
+  X6: WF (confidence: 0.740)
+  X7: WF (confidence: 1.000)
+  X8: WF (confidence: 0.740)
+  X9: Ad (confidence: 1.000)
+  X10: Ad (confidence: 0.990)
+
+Support Vector Machine:
+Average Prediction Confidence: 0.8567
+  X1: UF (confidence: 0.648)
+  X2: UF (confidence: 0.747)
+  X3: UF (confidence: 0.700)
+  X4: UF (confidence: 0.872)
+  X5: UF (confidence: 0.886)
+  X6: WF (confidence: 0.937)
+  X7: WF (confidence: 0.965)
+  X8: WF (confidence: 0.883)
+  X9: Ad (confidence: 0.976)
+  X10: Ad (confidence: 0.954)
+
+Logistic Regression:
+Average Prediction Confidence: 0.9457
+  X1: UF (confidence: 1.000)
+  X2: UF (confidence: 1.000)
+  X3: UF (confidence: 0.840)
+  X4: UF (confidence: 0.847)
+  X5: UF (confidence: 0.872)
+  X6: WF (confidence: 0.999)
+  X7: WF (confidence: 1.000)
+  X8: WF (confidence: 0.999)
+  X9: Ad (confidence: 0.962)
+  X10: Ad (confidence: 0.937)
+
+Gradient Boosting:
+Average Prediction Confidence: 1.0000
+  X1: UF (confidence: 1.000)
+  X2: UF (confidence: 1.000)
+  X3: UF (confidence: 1.000)
+  X4: UF (confidence: 1.000)
+  X5: UF (confidence: 1.000)
+  X6: WF (confidence: 1.000)
+  X7: WF (confidence: 1.000)
+  X8: WF (confidence: 1.000)
+  X9: Ad (confidence: 1.000)
+  X10: Ad (confidence: 1.000)
+
+K-Nearest Neighbors:
+Average Prediction Confidence: 0.8800
+  X1: UF (confidence: 1.000)
+  X2: UF (confidence: 1.000)
+  X3: UF (confidence: 0.600)
+  X4: UF (confidence: 0.600)
+  X5: UF (confidence: 0.600)
+  X6: WF (confidence: 1.000)
+  X7: WF (confidence: 1.000)
+  X8: WF (confidence: 1.000)
+  X9: Ad (confidence: 1.000)
+  X10: Ad (confidence: 1.000)
+
+Naive Bayes:
+Average Prediction Confidence: 1.0000
+  X1: UF (confidence: 1.000)
+  X2: UF (confidence: 1.000)
+  X3: UF (confidence: 1.000)
+  X4: UF (confidence: 1.000)
+  X5: UF (confidence: 1.000)
+  X6: WF (confidence: 1.000)
+  X7: WF (confidence: 1.000)
+  X8: WF (confidence: 1.000)
+  X9: Ad (confidence: 1.000)
+  X10: Ad (confidence: 1.000)
+
+Neural Network:
+Average Prediction Confidence: 0.9927
+  X1: UF (confidence: 1.000)
+  X2: UF (confidence: 1.000)
+  X3: UF (confidence: 0.989)
+  X4: UF (confidence: 0.980)
+  X5: UF (confidence: 0.990)
+  X6: WF (confidence: 1.000)
+  X7: WF (confidence: 1.000)
+  X8: WF (confidence: 1.000)
+  X9: Ad (confidence: 0.968)
+  X10: Ad (confidence: 0.998)
+
+Decision Tree:
+Average Prediction Confidence: 1.0000
+  X1: UF (confidence: 1.000)
+  X2: UF (confidence: 1.000)
+  X3: UF (confidence: 1.000)
+  X4: UF (confidence: 1.000)
+  X5: UF (confidence: 1.000)
+  X6: WF (confidence: 1.000)
+  X7: WF (confidence: 1.000)
+  X8: WF (confidence: 1.000)
+  X9: Ad (confidence: 1.000)
+  X10: Ad (confidence: 1.000)
+
+Random Forest (Tuned):
+Average Prediction Confidence: 0.9520
+  X1: UF (confidence: 1.000)
+  X2: UF (confidence: 1.000)
+  X3: UF (confidence: 0.960)
+  X4: UF (confidence: 0.980)
+  X5: UF (confidence: 0.980)
+  X6: WF (confidence: 0.800)
+  X7: WF (confidence: 1.000)
+  X8: WF (confidence: 0.800)
+  X9: Ad (confidence: 1.000)
+  X10: Ad (confidence: 1.000)
+
+Support Vector Machine (Tuned):
+Average Prediction Confidence: 0.8696
+  X1: UF (confidence: 0.624)
+  X2: UF (confidence: 0.733)
+  X3: UF (confidence: 0.731)
+  X4: UF (confidence: 0.907)
+  X5: UF (confidence: 0.899)
+  X6: WF (confidence: 0.955)
+  X7: WF (confidence: 0.976)
+  X8: WF (confidence: 0.914)
+  X9: Ad (confidence: 0.987)
+  X10: Ad (confidence: 0.970)
+
+Gradient Boosting (Tuned):
+Average Prediction Confidence: 0.5835
+  X1: UF (confidence: 0.546)
+  X2: UF (confidence: 0.546)
+  X3: UF (confidence: 0.546)
+  X4: UF (confidence: 0.546)
+  X5: UF (confidence: 0.546)
+  X6: WF (confidence: 0.551)
+  X7: WF (confidence: 0.603)
+  X8: WF (confidence: 0.551)
+  X9: Ad (confidence: 0.699)
+  X10: Ad (confidence: 0.699)
+
+✅ All predictions saved to: enose_analysis_results/data/all_predictions_20250813_121439.csv
+
+==================================================
+CREATING PREDICTION VISUALIZATIONS
+==================================================
+✅ Model confidence plot saved to: enose_analysis_results/plots/08_model_confidence_20250813_121439.png
+✅ Prediction distribution plot saved to: enose_analysis_results/plots/09_prediction_distribution_20250813_121439.png
+✅ Model agreement plot saved to: enose_analysis_results/plots/10_model_agreement_20250813_121439.png
+✅ Prediction heatmap saved to: enose_analysis_results/plots/11_prediction_heatmap_20250813_121439.png
+✅ Confidence distribution plot saved to: enose_analysis_results/plots/12_confidence_dist_1_Decision_Tree_20250813_121439.png
+✅ Confidence distribution plot saved to: enose_analysis_results/plots/12_confidence_dist_2_Naive_Bayes_20250813_121439.png
+✅ Confidence distribution plot saved to: enose_analysis_results/plots/12_confidence_dist_3_Gradient_Boosting_20250813_121439.png
+✅ Per-sample confidence plot saved to: enose_analysis_results/plots/13_per_sample_confidence_20250813_121439.png
+✅ Consensus predictions plot saved to: enose_analysis_results/plots/14_consensus_predictions_20250813_121439.png
+
+DETAILED PREDICTION SUMMARY:
+==================================================
+
+Most confident model: Decision Tree
+Average confidence: 1.0000
+
+CONSENSUS PREDICTIONS:
+------------------------------
+X1: UF (UNANIMOUS)
+X2: UF (UNANIMOUS)
+X3: UF (UNANIMOUS)
+X4: UF (UNANIMOUS)
+X5: UF (UNANIMOUS)
+X6: WF (UNANIMOUS)
+X7: WF (UNANIMOUS)
+X8: WF (UNANIMOUS)
+X9: Ad (UNANIMOUS)
+X10: Ad (UNANIMOUS)
+
+✅ Consensus predictions saved to: enose_analysis_results/data/consensus_predictions_20250813_121439.csv
+
+============================================================
+ANALYSIS SUMMARY
+============================================================
+
+Most confident model: Decision Tree
+Average Prediction Confidence: 1.0
+
+FINAL PREDICTIONS (using Decision Tree):
+----------------------------------------
+X1: UF (confidence: 1.000)
+X2: UF (confidence: 1.000)
+X3: UF (confidence: 1.000)
+X4: UF (confidence: 1.000)
+X5: UF (confidence: 1.000)
+X6: WF (confidence: 1.000)
+X7: WF (confidence: 1.000)
+X8: WF (confidence: 1.000)
+X9: Ad (confidence: 1.000)
+X10: Ad (confidence: 1.000)
+
+PREDICTION SUMMARY:
+- Ad: 2/10 samples (20.0%)
+- UF: 5/10 samples (50.0%)
+- WF: 3/10 samples (30.0%)
+
+TOP 5 MOST CONSISTENTLY IMPORTANT SENSOR CHANNELS:
+(Based on consensus across all models and statistical methods)
+1. ch0: Average rank 3.2 across all methods
+2. ch6: Average rank 4.3 across all methods
+3. ch12: Average rank 5.1 across all methods
+4. ch11: Average rank 5.2 across all methods
+5. ch3: Average rank 6.4 across all methods
+
+DATASET CHARACTERISTICS:
+- Training samples: 130 (WF: 40, Ad: 60, UF: 30)
+- Unclassified cocoa bean samples: 10 (X1-X10)
+- Sensor channels: 14 (ch0-ch13)
+- Training classes: WF, Ad, UF
+
+============================================================
+FINAL CLASSIFICATION RESULTS
+============================================================
+Sample_ID Predicted_Class  Confidence    Model_Used
+       X1              UF         1.0 Decision Tree
+       X2              UF         1.0 Decision Tree
+       X3              UF         1.0 Decision Tree
+       X4              UF         1.0 Decision Tree
+       X5              UF         1.0 Decision Tree
+       X6              WF         1.0 Decision Tree
+       X7              WF         1.0 Decision Tree
+       X8              WF         1.0 Decision Tree
+       X9              Ad         1.0 Decision Tree
+      X10              Ad         1.0 Decision Tree
+
+✅ Final classification results saved to: enose_analysis_results/data/final_classification_results_20250813_121439.csv
+
+============================================================
+INTERPRETATION:
+- WF, Ad, UF likely represent different types/qualities of cocoa beans
+- X1-X10 are unclassified cocoa bean samples
+- The model predicts which known category each sample belongs to
+- Higher confidence scores indicate more reliable predictions
+- Consider validating results with domain experts
+============================================================
+
+✅ Comprehensive summary report saved to: enose_analysis_results/ANALYSIS_SUMMARY_REPORT_20250813_121439.txt
+
+============================================================
+ANALYSIS COMPLETE - ALL RESULTS SAVED
+============================================================
+📁 Results directory: enose_analysis_results
+📊 Individual plots (21 files) saved in: enose_analysis_results/plots
+📋 Data files (11 CSV files) saved in: enose_analysis_results/data
+📝 Log files saved in: enose_analysis_results/logs
+📄 Summary report: ANALYSIS_SUMMARY_REPORT_20250813_121439.txt
+============================================================
+
+🎉 Comprehensive analysis complete with individual, high-quality files!
+   • 21 individual plots covering all aspects of the analysis
+   • 11 CSV files with detailed results and metrics
+   • Feature importance analyzed across ALL models and methods
+   • Comprehensive data quality and influence factor analysis
+   Each file can be used separately in presentations or publications.

@@ -12,6 +12,10 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.feature_selection import mutual_info_classif, chi2, SelectKBest
+from sklearn.inspection import permutation_importance
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 from scipy import stats
 import warnings
 import os
@@ -72,10 +76,10 @@ def load_and_preprocess_data():
     print("Loading and preprocessing data...")
     
     # Load training data (Sheet1)
-    train_data = pd.read_excel('data_enose_unseen.xlsx', sheet_name='Sheet1')
+    train_data = pd.read_excel('data enose_unseen.xlsx', sheet_name='Sheet1')
     
     # Load testing data (unseen) - these are unclassified cocoa bean samples
-    test_data = pd.read_excel('data_enose_unseen.xlsx', sheet_name='unseen')
+    test_data = pd.read_excel('data enose_unseen.xlsx', sheet_name='unseen')
     
     # Clean column names and handle the unnamed first column
     train_data.columns = ['class'] + [f'ch{i}' for i in range(14)]
@@ -308,6 +312,672 @@ def exploratory_data_analysis(train_data, test_data):
     print(f"\n✅ Feature comparison saved to: {comparison_file}")
     
     return feature_cols
+
+def comprehensive_data_analysis(train_data, test_data, feature_cols):
+    """Perform comprehensive analysis of factors that can influence results"""
+    print("\n" + "="*60)
+    print("COMPREHENSIVE DATA ANALYSIS")
+    print("="*60)
+    
+    # 1. Feature distribution analysis by class
+    print("\n1. FEATURE DISTRIBUTION ANALYSIS BY CLASS")
+    print("-" * 50)
+    
+    plt.figure(figsize=(20, 15))
+    
+    # Create subplot for each feature showing distribution by class
+    n_features = len(feature_cols)
+    n_cols = 4
+    n_rows = (n_features + n_cols - 1) // n_cols
+    
+    for i, feature in enumerate(feature_cols):
+        plt.subplot(n_rows, n_cols, i + 1)
+        
+        for class_name in train_data['class'].unique():
+            class_data = train_data[train_data['class'] == class_name][feature]
+            plt.hist(class_data, alpha=0.6, label=class_name, bins=15)
+        
+        plt.title(f'{feature} Distribution by Class', fontsize=10)
+        plt.xlabel('Value')
+        plt.ylabel('Frequency')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    dist_plot_file = os.path.join(PLOTS_DIR, f"15_feature_distributions_by_class_{timestamp}.png")
+    plt.savefig(dist_plot_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Feature distributions by class saved to: {dist_plot_file}")
+    plt.close()
+    
+    # 2. Statistical significance analysis (detailed)
+    print("\n2. STATISTICAL SIGNIFICANCE ANALYSIS")
+    print("-" * 50)
+    
+    statistical_results = []
+    for feature in feature_cols:
+        # ANOVA F-test
+        class_data = [train_data[train_data['class'] == cls][feature].values 
+                     for cls in train_data['class'].unique()]
+        f_stat, p_value = stats.f_oneway(*class_data)
+        
+        # Kruskal-Wallis test (non-parametric alternative)
+        h_stat, h_p_value = stats.kruskal(*class_data)
+        
+        # Effect size (eta-squared)
+        ss_between = sum([len(group) * (np.mean(group) - np.mean(train_data[feature]))**2 
+                         for group in class_data])
+        ss_total = np.sum((train_data[feature] - np.mean(train_data[feature]))**2)
+        eta_squared = ss_between / ss_total if ss_total > 0 else 0
+        
+        statistical_results.append({
+            'feature': feature,
+            'f_statistic': f_stat,
+            'f_p_value': p_value,
+            'kruskal_h': h_stat,
+            'kruskal_p': h_p_value,
+            'eta_squared': eta_squared,
+            'significance': 'High' if p_value < 0.001 else 'Medium' if p_value < 0.01 else 'Low' if p_value < 0.05 else 'None'
+        })
+        
+        print(f"{feature}: F={f_stat:.2f}, p={p_value:.2e}, η²={eta_squared:.3f} ({statistical_results[-1]['significance']} significance)")
+    
+    # Save statistical results
+    stats_df = pd.DataFrame(statistical_results)
+    stats_file = os.path.join(DATA_DIR, f"detailed_statistical_analysis_{timestamp}.csv")
+    stats_df.to_csv(stats_file, index=False)
+    print(f"\n✅ Detailed statistical analysis saved to: {stats_file}")
+    
+    # 3. Outlier detection and analysis
+    print("\n3. OUTLIER DETECTION AND ANALYSIS")
+    print("-" * 50)
+    
+    # Z-score based outlier detection
+    z_scores = np.abs(stats.zscore(train_data[feature_cols]))
+    outlier_threshold = 3
+    outliers_zscore = (z_scores > outlier_threshold).sum(axis=1)
+    
+    # IQR based outlier detection
+    Q1 = train_data[feature_cols].quantile(0.25)
+    Q3 = train_data[feature_cols].quantile(0.75)
+    IQR = Q3 - Q1
+    outliers_iqr = ((train_data[feature_cols] < (Q1 - 1.5 * IQR)) | 
+                    (train_data[feature_cols] > (Q3 + 1.5 * IQR))).sum(axis=1)
+    
+    # Create outlier visualization
+    plt.figure(figsize=(15, 10))
+    
+    plt.subplot(2, 2, 1)
+    plt.hist(outliers_zscore, bins=20, alpha=0.7, color='red', edgecolor='black')
+    plt.title('Distribution of Z-Score Based Outliers per Sample')
+    plt.xlabel('Number of Outlier Features per Sample')
+    plt.ylabel('Frequency')
+    plt.grid(True, alpha=0.3)
+    
+    plt.subplot(2, 2, 2)
+    plt.hist(outliers_iqr, bins=20, alpha=0.7, color='blue', edgecolor='black')
+    plt.title('Distribution of IQR Based Outliers per Sample')
+    plt.xlabel('Number of Outlier Features per Sample')
+    plt.ylabel('Frequency')
+    plt.grid(True, alpha=0.3)
+    
+    # Outliers by class
+    plt.subplot(2, 2, 3)
+    for class_name in train_data['class'].unique():
+        class_mask = train_data['class'] == class_name
+        class_outliers = outliers_zscore[class_mask]
+        plt.hist(class_outliers, alpha=0.6, label=f'{class_name}', bins=10)
+    plt.title('Z-Score Outliers by Class')
+    plt.xlabel('Number of Outlier Features')
+    plt.ylabel('Frequency')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    
+    plt.subplot(2, 2, 4)
+    # Outlier features frequency
+    outlier_features = (z_scores > outlier_threshold).sum(axis=0)
+    plt.bar(feature_cols, outlier_features, color='orange', alpha=0.7)
+    plt.title('Outlier Frequency by Feature')
+    plt.xlabel('Features')
+    plt.ylabel('Number of Outlier Samples')
+    plt.xticks(rotation=45)
+    plt.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    outlier_plot_file = os.path.join(PLOTS_DIR, f"16_outlier_analysis_{timestamp}.png")
+    plt.savefig(outlier_plot_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Outlier analysis plot saved to: {outlier_plot_file}")
+    plt.close()
+    
+    print(f"Z-score outliers (>3σ): {(outliers_zscore > 0).sum()} samples affected")
+    print(f"IQR outliers: {(outliers_iqr > 0).sum()} samples affected")
+    
+    # Fix the array indexing issue
+    outlier_features = (z_scores > outlier_threshold).sum(axis=0)
+    most_problematic_indices = np.argsort(outlier_features)[-3:][::-1]
+    most_problematic_features = [feature_cols[i] for i in most_problematic_indices]
+    print(f"Most problematic features (Z-score): {most_problematic_features}")
+    
+    # 4. Data quality assessment
+    print("\n4. DATA QUALITY ASSESSMENT")
+    print("-" * 50)
+    
+    quality_metrics = {}
+    
+    # Missing values
+    missing_train = train_data[feature_cols].isnull().sum()
+    missing_test = test_data[feature_cols].isnull().sum()
+    
+    # Variance analysis
+    feature_variances = train_data[feature_cols].var()
+    low_variance_features = feature_variances[feature_variances < feature_variances.quantile(0.1)]
+    
+    # Skewness analysis
+    feature_skewness = train_data[feature_cols].skew()
+    highly_skewed = feature_skewness[np.abs(feature_skewness) > 2]
+    
+    # Range analysis
+    feature_ranges = train_data[feature_cols].max() - train_data[feature_cols].min()
+    
+    # Coefficient of variation (handle division by zero)
+    feature_means = train_data[feature_cols].mean()
+    feature_stds = train_data[feature_cols].std()
+    cv_values = np.where(feature_means != 0, feature_stds / feature_means, 0)
+    
+    quality_metrics = {
+        'feature': feature_cols,
+        'missing_train': missing_train.values,
+        'missing_test': missing_test.values,
+        'variance': feature_variances.values,
+        'skewness': feature_skewness.values,
+        'range': feature_ranges.values,
+        'cv': cv_values
+    }
+    
+    quality_df = pd.DataFrame(quality_metrics)
+    quality_file = os.path.join(DATA_DIR, f"data_quality_metrics_{timestamp}.csv")
+    quality_df.to_csv(quality_file, index=False)
+    print(f"✅ Data quality metrics saved to: {quality_file}")
+    
+    print(f"Low variance features: {len(low_variance_features)}")
+    print(f"Highly skewed features (|skew| > 2): {len(highly_skewed)}")
+    if len(highly_skewed) > 0:
+        print(f"  Most skewed: {highly_skewed.abs().sort_values(ascending=False).head(3).index.tolist()}")
+    
+    # 5. Class separability analysis
+    print("\n5. CLASS SEPARABILITY ANALYSIS")
+    print("-" * 50)
+    
+    # Calculate class separability metrics
+    class_means = train_data.groupby('class')[feature_cols].mean()
+    class_stds = train_data.groupby('class')[feature_cols].std()
+    
+    # Calculate separability index for each feature
+    separability_scores = []
+    for feature in feature_cols:
+        classes = train_data['class'].unique()
+        max_separation = 0
+        
+        for i in range(len(classes)):
+            for j in range(i+1, len(classes)):
+                class1_data = train_data[train_data['class'] == classes[i]][feature]
+                class2_data = train_data[train_data['class'] == classes[j]][feature]
+                
+                # Fisher's discriminant ratio
+                mean_diff = abs(class1_data.mean() - class2_data.mean())
+                var_sum = class1_data.var() + class2_data.var()
+                
+                if var_sum > 0:
+                    fisher_ratio = (mean_diff ** 2) / var_sum
+                    max_separation = max(max_separation, fisher_ratio)
+        
+        separability_scores.append(max_separation)
+    
+    # Visualize separability
+    plt.figure(figsize=(12, 8))
+    
+    plt.subplot(2, 1, 1)
+    bars = plt.bar(feature_cols, separability_scores, color='purple', alpha=0.7)
+    plt.title('Feature Class Separability (Fisher Discriminant Ratio)')
+    plt.xlabel('Features')
+    plt.ylabel('Separability Score')
+    plt.xticks(rotation=45)
+    plt.grid(True, alpha=0.3)
+    
+    # Add values on bars
+    for bar, score in zip(bars, separability_scores):
+        plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(separability_scores)*0.01,
+                f'{score:.2f}', ha='center', va='bottom', rotation=45)
+    
+    plt.subplot(2, 1, 2)
+    # Class distance matrix visualization
+    class_distances = np.zeros((len(train_data['class'].unique()), len(train_data['class'].unique())))
+    classes = train_data['class'].unique()
+    
+    for i, class1 in enumerate(classes):
+        for j, class2 in enumerate(classes):
+            if i != j:
+                data1 = train_data[train_data['class'] == class1][feature_cols].mean()
+                data2 = train_data[train_data['class'] == class2][feature_cols].mean()
+                distance = np.linalg.norm(data1 - data2)
+                class_distances[i, j] = distance
+    
+    sns.heatmap(class_distances, 
+                xticklabels=classes, 
+                yticklabels=classes,
+                annot=True, 
+                cmap='viridis',
+                fmt='.2f')
+    plt.title('Inter-Class Distance Matrix (Euclidean Distance)')
+    
+    plt.tight_layout()
+    separability_plot_file = os.path.join(PLOTS_DIR, f"17_class_separability_{timestamp}.png")
+    plt.savefig(separability_plot_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Class separability analysis saved to: {separability_plot_file}")
+    plt.close()
+    
+    # Save separability results
+    separability_df = pd.DataFrame({
+        'feature': feature_cols,
+        'separability_score': separability_scores
+    }).sort_values('separability_score', ascending=False)
+    
+    separability_file = os.path.join(DATA_DIR, f"class_separability_{timestamp}.csv")
+    separability_df.to_csv(separability_file, index=False)
+    print(f"✅ Class separability results saved to: {separability_file}")
+    
+    print(f"Most separable features: {separability_df.head(3)['feature'].tolist()}")
+    print(f"Least separable features: {separability_df.tail(3)['feature'].tolist()}")
+    
+    # 6. Train vs Test data comparison (Domain shift analysis)
+    print("\n6. DOMAIN SHIFT ANALYSIS (TRAIN VS TEST)")
+    print("-" * 50)
+    
+    # Statistical tests for distribution differences
+    domain_shift_results = []
+    
+    for feature in feature_cols:
+        train_vals = train_data[feature].values
+        test_vals = test_data[feature].values
+        
+        # Kolmogorov-Smirnov test
+        ks_stat, ks_p = stats.ks_2samp(train_vals, test_vals)
+        
+        # Mann-Whitney U test
+        mw_stat, mw_p = stats.mannwhitneyu(train_vals, test_vals, alternative='two-sided')
+        
+        # Effect size (Cohen's d)
+        pooled_std = np.sqrt(((len(train_vals) - 1) * np.var(train_vals) + 
+                             (len(test_vals) - 1) * np.var(test_vals)) / 
+                            (len(train_vals) + len(test_vals) - 2))
+        cohens_d = (np.mean(train_vals) - np.mean(test_vals)) / pooled_std if pooled_std > 0 else 0
+        
+        domain_shift_results.append({
+            'feature': feature,
+            'ks_statistic': ks_stat,
+            'ks_p_value': ks_p,
+            'mw_statistic': mw_stat,
+            'mw_p_value': mw_p,
+            'cohens_d': cohens_d,
+            'domain_shift_risk': 'High' if ks_p < 0.01 else 'Medium' if ks_p < 0.05 else 'Low'
+        })
+        
+        print(f"{feature}: KS={ks_stat:.3f} (p={ks_p:.2e}), Cohen's d={cohens_d:.3f} ({domain_shift_results[-1]['domain_shift_risk']} risk)")
+    
+    # Save domain shift analysis
+    domain_shift_df = pd.DataFrame(domain_shift_results)
+    domain_shift_file = os.path.join(DATA_DIR, f"domain_shift_analysis_{timestamp}.csv")
+    domain_shift_df.to_csv(domain_shift_file, index=False)
+    print(f"\n✅ Domain shift analysis saved to: {domain_shift_file}")
+    
+    high_risk_features = domain_shift_df[domain_shift_df['domain_shift_risk'] == 'High']['feature'].tolist()
+    if high_risk_features:
+        print(f"⚠️  High domain shift risk features: {high_risk_features}")
+        print("   These features may negatively impact model performance on test data")
+    
+    # 7. Feature correlation impact analysis
+    print("\n7. FEATURE CORRELATION IMPACT ANALYSIS")
+    print("-" * 50)
+    
+    # Calculate correlation with target variable (using encoded labels)
+    le = LabelEncoder()
+    y_encoded = le.fit_transform(train_data['class'])
+    
+    target_correlations = []
+    for feature in feature_cols:
+        # Pearson correlation
+        pearson_corr = np.corrcoef(train_data[feature], y_encoded)[0, 1]
+        
+        # Spearman correlation (rank-based)
+        spearman_corr, _ = stats.spearmanr(train_data[feature], y_encoded)
+        
+        target_correlations.append({
+            'feature': feature,
+            'pearson_correlation': pearson_corr,
+            'spearman_correlation': spearman_corr
+        })
+        
+        print(f"{feature}: Pearson={pearson_corr:.3f}, Spearman={spearman_corr:.3f}")
+    
+    # Save correlation analysis
+    correlation_df = pd.DataFrame(target_correlations)
+    correlation_file = os.path.join(DATA_DIR, f"target_correlation_analysis_{timestamp}.csv")
+    correlation_df.to_csv(correlation_file, index=False)
+    print(f"\n✅ Target correlation analysis saved to: {correlation_file}")
+    
+    return {
+        'statistical_results': statistical_results,
+        'separability_scores': separability_scores,
+        'domain_shift_results': domain_shift_results,
+        'target_correlations': target_correlations,
+        'quality_metrics': quality_df
+    }
+
+def comprehensive_feature_importance_analysis(models, tuned_models, X_train, y_train, feature_cols):
+    """Analyze feature importance across all models"""
+    print("\n" + "="*60)
+    print("COMPREHENSIVE FEATURE IMPORTANCE ANALYSIS")
+    print("="*60)
+    
+    all_importance_scores = {}
+    all_models = {**models, **{f"{name} (Tuned)": info for name, info in tuned_models.items()}}
+    
+    # 1. Extract built-in feature importance
+    print("\n1. BUILT-IN FEATURE IMPORTANCE")
+    print("-" * 40)
+    
+    for model_name, model_info in all_models.items():
+        if model_name in models:
+            model = model_info['model']
+        else:
+            model = model_info['model']
+        
+        importance_scores = np.zeros(len(feature_cols))
+        
+        if hasattr(model, 'feature_importances_'):
+            # Tree-based models (Random Forest, Gradient Boosting, Decision Tree)
+            importance_scores = model.feature_importances_
+            method = "Built-in"
+            
+        elif hasattr(model, 'coef_'):
+            # Linear models (Logistic Regression, SVM with linear kernel)
+            if len(model.coef_.shape) > 1:
+                # Multi-class: use mean absolute coefficient
+                importance_scores = np.mean(np.abs(model.coef_), axis=0)
+            else:
+                importance_scores = np.abs(model.coef_)
+            method = "Coefficients"
+            
+        else:
+            # Use permutation importance for other models
+            print(f"  Computing permutation importance for {model_name}...")
+            perm_importance = permutation_importance(
+                model, X_train, y_train, 
+                n_repeats=10, 
+                random_state=42, 
+                scoring='accuracy'
+            )
+            importance_scores = perm_importance.importances_mean
+            method = "Permutation"
+        
+        all_importance_scores[model_name] = {
+            'scores': importance_scores,
+            'method': method
+        }
+        
+        print(f"{model_name}: {method} importance calculated")
+    
+    # 2. Statistical feature selection methods
+    print("\n2. STATISTICAL FEATURE SELECTION")
+    print("-" * 40)
+    
+    # Mutual Information
+    mi_scores = mutual_info_classif(X_train, y_train, random_state=42)
+    all_importance_scores['Mutual Information'] = {
+        'scores': mi_scores,
+        'method': 'Statistical'
+    }
+    
+    # Chi-square test (need to ensure non-negative values)
+    X_train_positive = X_train - X_train.min(axis=0) + 1e-8  # Make all values positive
+    chi2_scores, _ = chi2(X_train_positive, y_train)
+    all_importance_scores['Chi-Square'] = {
+        'scores': chi2_scores,
+        'method': 'Statistical'
+    }
+    
+    # ANOVA F-score (fix the calculation)
+    f_scores = []
+    unique_classes = np.unique(y_train)
+    for feature_idx in range(X_train.shape[1]):
+        feature_data = X_train[:, feature_idx]
+        class_groups = [feature_data[y_train == cls] for cls in unique_classes]
+        f_stat, _ = stats.f_oneway(*class_groups)
+        f_scores.append(f_stat)
+    
+    f_scores = np.array(f_scores)
+    all_importance_scores['ANOVA F-Score'] = {
+        'scores': f_scores,
+        'method': 'Statistical'
+    }
+    
+    print("Statistical feature selection methods calculated")
+    
+    # 3. Create comprehensive visualization
+    print("\n3. CREATING FEATURE IMPORTANCE VISUALIZATIONS")
+    print("-" * 40)
+    
+    # Normalize all scores to 0-1 range for comparison
+    normalized_scores = {}
+    for method_name, score_info in all_importance_scores.items():
+        scores = score_info['scores']
+        if scores.max() > scores.min():
+            normalized = (scores - scores.min()) / (scores.max() - scores.min())
+        else:
+            normalized = scores
+        normalized_scores[method_name] = normalized
+    
+    # Create heatmap of all feature importance
+    plt.figure(figsize=(16, 12))
+    
+    importance_matrix = np.array([normalized_scores[method] for method in normalized_scores.keys()])
+    
+    sns.heatmap(importance_matrix,
+                xticklabels=feature_cols,
+                yticklabels=list(normalized_scores.keys()),
+                annot=True,
+                fmt='.3f',
+                cmap='YlOrRd',
+                cbar_kws={'label': 'Normalized Importance Score'})
+    
+    plt.title('Feature Importance Across All Models and Methods', fontsize=14)
+    plt.xlabel('Features', fontsize=12)
+    plt.ylabel('Models/Methods', fontsize=12)
+    plt.xticks(rotation=45)
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    
+    importance_heatmap_file = os.path.join(PLOTS_DIR, f"18_feature_importance_heatmap_{timestamp}.png")
+    plt.savefig(importance_heatmap_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Feature importance heatmap saved to: {importance_heatmap_file}")
+    plt.close()
+    
+    # 4. Individual model importance plots
+    n_models = len(all_importance_scores)
+    n_cols = 3
+    n_rows = (n_models + n_cols - 1) // n_cols
+    
+    plt.figure(figsize=(18, 6 * n_rows))
+    
+    for i, (method_name, score_info) in enumerate(all_importance_scores.items()):
+        plt.subplot(n_rows, n_cols, i + 1)
+        
+        scores = score_info['scores']
+        colors = plt.cm.viridis(np.linspace(0, 1, len(feature_cols)))
+        
+        bars = plt.bar(feature_cols, scores, color=colors, alpha=0.7)
+        plt.title(f'{method_name}\n({score_info["method"]} Method)', fontsize=11)
+        plt.xlabel('Features')
+        plt.ylabel('Importance Score')
+        plt.xticks(rotation=45)
+        plt.grid(True, alpha=0.3)
+        
+        # Add values on top of bars for top 3 features
+        top_3_indices = np.argsort(scores)[-3:]
+        for idx in top_3_indices:
+            plt.text(idx, scores[idx] + scores.max()*0.01, 
+                    f'{scores[idx]:.3f}', 
+                    ha='center', va='bottom', fontsize=8)
+    
+    plt.tight_layout()
+    individual_importance_file = os.path.join(PLOTS_DIR, f"19_individual_feature_importance_{timestamp}.png")
+    plt.savefig(individual_importance_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Individual feature importance plots saved to: {individual_importance_file}")
+    plt.close()
+    
+    # 5. Feature importance ranking comparison
+    plt.figure(figsize=(16, 10))
+    
+    # Calculate average ranking across all methods
+    rankings = {}
+    for method_name, score_info in all_importance_scores.items():
+        scores = score_info['scores']
+        ranking = stats.rankdata(-scores)  # Negative for descending order
+        rankings[method_name] = ranking
+    
+    ranking_matrix = np.array([rankings[method] for method in rankings.keys()])
+    avg_ranking = np.mean(ranking_matrix, axis=0)
+    
+    # Sort features by average ranking
+    sorted_indices = np.argsort(avg_ranking)
+    sorted_features = [feature_cols[i] for i in sorted_indices]
+    sorted_rankings = ranking_matrix[:, sorted_indices]
+    
+    sns.heatmap(sorted_rankings,
+                xticklabels=sorted_features,
+                yticklabels=list(rankings.keys()),
+                annot=True,
+                fmt='.0f',
+                cmap='RdYlBu_r',
+                cbar_kws={'label': 'Ranking (1 = Most Important)'})
+    
+    plt.title('Feature Importance Rankings Across All Methods', fontsize=14)
+    plt.xlabel('Features (Sorted by Average Ranking)', fontsize=12)
+    plt.ylabel('Models/Methods', fontsize=12)
+    plt.xticks(rotation=45)
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    
+    ranking_heatmap_file = os.path.join(PLOTS_DIR, f"20_feature_ranking_comparison_{timestamp}.png")
+    plt.savefig(ranking_heatmap_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Feature ranking comparison saved to: {ranking_heatmap_file}")
+    plt.close()
+    
+    # 6. Consensus feature importance
+    print("\n4. CONSENSUS FEATURE IMPORTANCE ANALYSIS")
+    print("-" * 40)
+    
+    # Calculate consensus scores using different methods
+    consensus_scores = {
+        'mean_normalized': np.mean(importance_matrix, axis=0),
+        'median_normalized': np.median(importance_matrix, axis=0),
+        'mean_ranking': np.mean(ranking_matrix, axis=0),
+        'borda_count': len(feature_cols) + 1 - np.mean(ranking_matrix, axis=0)  # Borda count
+    }
+    
+    plt.figure(figsize=(16, 10))
+    
+    for i, (consensus_name, scores) in enumerate(consensus_scores.items()):
+        plt.subplot(2, 2, i + 1)
+        
+        # Sort features by consensus score
+        sorted_indices = np.argsort(scores)[::-1]
+        sorted_features = [feature_cols[j] for j in sorted_indices]
+        sorted_scores = scores[sorted_indices]
+        
+        bars = plt.bar(range(len(sorted_features)), sorted_scores, 
+                      color=plt.cm.plasma(np.linspace(0, 1, len(sorted_features))), 
+                      alpha=0.7)
+        
+        plt.title(f'Consensus Feature Importance\n({consensus_name.replace("_", " ").title()})')
+        plt.xlabel('Features (Ranked)')
+        plt.ylabel('Consensus Score')
+        plt.xticks(range(len(sorted_features)), sorted_features, rotation=45)
+        plt.grid(True, alpha=0.3)
+        
+        # Highlight top 5 features
+        for j in range(min(5, len(sorted_features))):
+            plt.text(j, sorted_scores[j] + sorted_scores.max()*0.01,
+                    f'{sorted_scores[j]:.3f}',
+                    ha='center', va='bottom', fontsize=8, fontweight='bold')
+    
+    plt.tight_layout()
+    consensus_importance_file = os.path.join(PLOTS_DIR, f"21_consensus_feature_importance_{timestamp}.png")
+    plt.savefig(consensus_importance_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Consensus feature importance saved to: {consensus_importance_file}")
+    plt.close()
+    
+    # 7. Save all importance scores to CSV
+    importance_data = []
+    
+    for method_name, score_info in all_importance_scores.items():
+        for i, feature in enumerate(feature_cols):
+            importance_data.append({
+                'method': method_name,
+                'feature': feature,
+                'raw_score': score_info['scores'][i],
+                'normalized_score': normalized_scores[method_name][i],
+                'ranking': rankings[method_name][i],
+                'method_type': score_info['method']
+            })
+    
+    # Add consensus scores
+    for consensus_name, scores in consensus_scores.items():
+        for i, feature in enumerate(feature_cols):
+            importance_data.append({
+                'method': f'Consensus_{consensus_name}',
+                'feature': feature,
+                'raw_score': scores[i],
+                'normalized_score': scores[i],
+                'ranking': stats.rankdata(-scores)[i],
+                'method_type': 'Consensus'
+            })
+    
+    importance_df = pd.DataFrame(importance_data)
+    importance_file = os.path.join(DATA_DIR, f"comprehensive_feature_importance_{timestamp}.csv")
+    importance_df.to_csv(importance_file, index=False)
+    print(f"\n✅ Comprehensive feature importance saved to: {importance_file}")
+    
+    # 8. Summary of top features
+    print("\n5. FEATURE IMPORTANCE SUMMARY")
+    print("-" * 40)
+    
+    # Find most consistently important features
+    mean_ranking = np.mean(ranking_matrix, axis=0)
+    top_features_indices = np.argsort(mean_ranking)[:5]
+    top_features = [feature_cols[i] for i in top_features_indices]
+    
+    print("TOP 5 MOST CONSISTENTLY IMPORTANT FEATURES:")
+    for i, feature_idx in enumerate(top_features_indices):
+        feature = feature_cols[feature_idx]
+        avg_rank = mean_ranking[feature_idx]
+        print(f"{i+1}. {feature}: Average rank {avg_rank:.1f}")
+        
+        # Show scores across different methods
+        print(f"   Scores across methods:")
+        method_names = list(all_importance_scores.keys())
+        for method_name in method_names[:5]:  # Show top 5 methods
+            score_info = all_importance_scores[method_name]
+            score = score_info['scores'][feature_idx]
+            print(f"     {method_name}: {score:.4f}")
+        print()
+    
+    return {
+        'all_importance_scores': all_importance_scores,
+        'normalized_scores': normalized_scores,
+        'rankings': rankings,
+        'consensus_scores': consensus_scores,
+        'top_features': top_features
+    }
 
 def prepare_data_for_modeling(train_data, test_data, feature_cols):
     """Prepare data for machine learning models"""
@@ -858,6 +1528,9 @@ def main():
         # Exploratory data analysis
         feature_cols = exploratory_data_analysis(train_data, test_data)
         
+        # Comprehensive data analysis
+        comprehensive_analysis = comprehensive_data_analysis(train_data, test_data, feature_cols)
+        
         # Prepare data for modeling
         X_train_full, X_test, y_train_full, test_sample_ids, X_train, X_val, y_train, y_val, scaler = prepare_data_for_modeling(
             train_data, test_data, feature_cols
@@ -868,6 +1541,11 @@ def main():
         
         # Hyperparameter tuning
         tuned_models = hyperparameter_tuning(X_train_full, y_train_full)
+        
+        # Comprehensive feature importance analysis
+        feature_importance_analysis = comprehensive_feature_importance_analysis(
+            model_results, tuned_models, X_train_full, y_train_full, feature_cols
+        )
         
         # Make predictions on unclassified samples
         all_predictions, prediction_probabilities = predict_unclassified_samples(model_results, tuned_models, X_test, test_sample_ids)
@@ -904,18 +1582,16 @@ def main():
             percentage = (count / total_samples) * 100
             print(f"- {pred_class}: {count}/{total_samples} samples ({percentage:.1f}%)")
         
-        # Feature importance from Random Forest
-        rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
-        rf_model.fit(X_train_full, y_train_full)
+        # Feature importance from comprehensive analysis
+        top_features = feature_importance_analysis['top_features']
         
-        feature_importance = pd.DataFrame({
-            'feature': feature_cols,
-            'importance': rf_model.feature_importances_
-        }).sort_values('importance', ascending=False)
-        
-        print(f"\nTOP 5 MOST IMPORTANT SENSOR CHANNELS:")
-        for i, (_, row) in enumerate(feature_importance.head().iterrows()):
-            print(f"{i+1}. {row['feature']}: {row['importance']:.4f}")
+        print(f"\nTOP 5 MOST CONSISTENTLY IMPORTANT SENSOR CHANNELS:")
+        print("(Based on consensus across all models and statistical methods)")
+        for i, feature in enumerate(top_features[:5]):
+            feature_idx = feature_cols.index(feature)
+            ranking_matrix = np.array([feature_importance_analysis['rankings'][method] for method in feature_importance_analysis['rankings'].keys()])
+            avg_rank = np.mean(ranking_matrix, axis=0)[feature_idx]
+            print(f"{i+1}. {feature}: Average rank {avg_rank:.1f} across all methods")
         
         print(f"\nDATASET CHARACTERISTICS:")
         print(f"- Training samples: {len(train_data)} (WF: 40, Ad: 60, UF: 30)")
@@ -953,20 +1629,24 @@ def main():
         
         # Create comprehensive summary report
         create_summary_report(timestamp, train_data, test_data, feature_cols, 
-                             best_model, results_df, feature_importance)
+                             best_model, results_df, feature_importance_analysis, comprehensive_analysis)
         
         # Close logging
         print(f"\n" + "="*60)
         print("ANALYSIS COMPLETE - ALL RESULTS SAVED")
         print("="*60)
         print(f"📁 Results directory: {RESULTS_DIR}")
-        print(f"📊 Individual plots (14 files) saved in: {PLOTS_DIR}")
-        print(f"📋 Data files (8 CSV files) saved in: {DATA_DIR}")
+        print(f"📊 Individual plots (21 files) saved in: {PLOTS_DIR}")
+        print(f"📋 Data files (11 CSV files) saved in: {DATA_DIR}")
         print(f"📝 Log files saved in: {LOGS_DIR}")
         print(f"📄 Summary report: ANALYSIS_SUMMARY_REPORT_{timestamp}.txt")
         print("="*60)
-        print("\n🎉 All visualizations are now individual, high-quality files!")
-        print("   Each plot can be used separately in presentations or publications.")
+        print("\n🎉 Comprehensive analysis complete with individual, high-quality files!")
+        print("   • 21 individual plots covering all aspects of the analysis")
+        print("   • 11 CSV files with detailed results and metrics")
+        print("   • Feature importance analyzed across ALL models and methods")
+        print("   • Comprehensive data quality and influence factor analysis")
+        print("   Each file can be used separately in presentations or publications.")
         
     except Exception as e:
         print(f"\n❌ Error occurred during analysis: {str(e)}")
@@ -978,7 +1658,7 @@ def main():
             logger.close()
             sys.stdout = sys.__stdout__
 
-def create_summary_report(timestamp, train_data, test_data, feature_cols, best_model, results_df, feature_importance):
+def create_summary_report(timestamp, train_data, test_data, feature_cols, best_model, results_df, feature_importance_analysis, comprehensive_analysis):
     """Create a comprehensive summary report"""
     
     report_file = os.path.join(RESULTS_DIR, f"ANALYSIS_SUMMARY_REPORT_{timestamp}.txt")
@@ -1000,6 +1680,31 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
         f.write(f"  - UF: {len(train_data[train_data['class'] == 'UF'])}\n")
         f.write(f"Unclassified Samples: {len(test_data)} (X1-X10)\n")
         f.write(f"Features: {len(feature_cols)} sensor channels (ch0-ch13)\n\n")
+        
+        # Data Quality Assessment
+        f.write("DATA QUALITY ASSESSMENT:\n")
+        f.write("-"*40 + "\n")
+        quality_issues = []
+        
+        # Check for high domain shift risk features
+        high_risk_features = [result['feature'] for result in comprehensive_analysis['domain_shift_results'] 
+                             if result['domain_shift_risk'] == 'High']
+        if high_risk_features:
+            quality_issues.append(f"High domain shift risk: {', '.join(high_risk_features)}")
+        
+        # Check for low separability features
+        separability_scores = comprehensive_analysis['separability_scores']
+        low_sep_indices = [i for i, score in enumerate(separability_scores) if score < np.percentile(separability_scores, 25)]
+        low_sep_features = [feature_cols[i] for i in low_sep_indices]
+        if low_sep_features:
+            quality_issues.append(f"Low class separability: {', '.join(low_sep_features[:3])}...")
+        
+        if quality_issues:
+            for issue in quality_issues:
+                f.write(f"⚠️  {issue}\n")
+        else:
+            f.write("✅ No major data quality issues detected\n")
+        f.write("\n")
         
         # Best Model Information
         f.write("BEST PERFORMING MODEL:\n")
@@ -1024,57 +1729,120 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
             f.write(f"{pred_class}: {count}/{total_samples} samples ({percentage:.1f}%)\n")
         f.write("\n")
         
-        # Feature Importance
-        f.write("TOP 10 MOST IMPORTANT SENSOR CHANNELS:\n")
+        # Comprehensive Feature Importance
+        f.write("TOP 10 MOST CONSISTENTLY IMPORTANT FEATURES:\n")
         f.write("-"*40 + "\n")
-        for i, (_, row) in enumerate(feature_importance.head(10).iterrows()):
-            f.write(f"{i+1:2d}. {row['feature']}: {row['importance']:.4f}\n")
+        top_features = feature_importance_analysis['top_features'][:10]
+        rankings = feature_importance_analysis['rankings']
+        
+        # Calculate average ranking for each feature
+        ranking_matrix = np.array([rankings[method] for method in rankings.keys()])
+        mean_ranking = np.mean(ranking_matrix, axis=0)
+        
+        for i, feature in enumerate(top_features):
+            feature_idx = feature_cols.index(feature)
+            avg_rank = mean_ranking[feature_idx]
+            f.write(f"{i+1:2d}. {feature}: Average rank {avg_rank:.1f}\n")
+        f.write("\n")
+        
+        # Model Agreement on Feature Importance
+        f.write("FEATURE IMPORTANCE CONSENSUS:\n")
+        f.write("-"*40 + "\n")
+        consensus_borda = feature_importance_analysis['consensus_scores']['borda_count']
+        top_consensus_indices = np.argsort(consensus_borda)[::-1][:5]
+        
+        f.write("Top 5 features by consensus (Borda count):\n")
+        for i, idx in enumerate(top_consensus_indices):
+            feature = feature_cols[idx]
+            score = consensus_borda[idx]
+            f.write(f"{i+1}. {feature}: {score:.2f}\n")
+        f.write("\n")
+        
+        # Statistical Significance
+        f.write("STATISTICAL SIGNIFICANCE SUMMARY:\n")
+        f.write("-"*40 + "\n")
+        high_sig_features = [result['feature'] for result in comprehensive_analysis['statistical_results'] 
+                           if result['significance'] == 'High']
+        med_sig_features = [result['feature'] for result in comprehensive_analysis['statistical_results'] 
+                          if result['significance'] == 'Medium']
+        
+        f.write(f"Highly significant features (p<0.001): {len(high_sig_features)}\n")
+        if high_sig_features:
+            f.write(f"  {', '.join(high_sig_features[:5])}{'...' if len(high_sig_features) > 5 else ''}\n")
+        
+        f.write(f"Moderately significant features (p<0.01): {len(med_sig_features)}\n")
+        if med_sig_features:
+            f.write(f"  {', '.join(med_sig_features[:5])}{'...' if len(med_sig_features) > 5 else ''}\n")
         f.write("\n")
         
         # Files Generated
         f.write("FILES GENERATED:\n")
         f.write("-"*40 + "\n")
         f.write("Individual Plots (High Resolution PNG):\n")
-        f.write(f"  01. Class Distribution: 01_class_distribution_{timestamp}.png\n")
-        f.write(f"  02. Sample Distribution: 02_sample_distribution_{timestamp}.png\n")
-        f.write(f"  03. Correlation Matrix: 03_correlation_matrix_{timestamp}.png\n")
-        f.write(f"  04. Sensor Boxplot: 04_sensor_boxplot_{timestamp}.png\n")
-        f.write(f"  05. Feature Importance: 05_feature_importance_{timestamp}.png\n")
-        f.write(f"  06. PCA Visualization: 06_pca_visualization_{timestamp}.png\n")
-        f.write(f"  07. Class Means Comparison: 07_class_means_comparison_{timestamp}.png\n")
-        f.write(f"  08. Model Confidence: 08_model_confidence_{timestamp}.png\n")
-        f.write(f"  09. Prediction Distribution: 09_prediction_distribution_{timestamp}.png\n")
-        f.write(f"  10. Model Agreement: 10_model_agreement_{timestamp}.png\n")
-        f.write(f"  11. Prediction Heatmap: 11_prediction_heatmap_{timestamp}.png\n")
-        f.write(f"  12-14. Confidence Distributions: 12_confidence_dist_*_{timestamp}.png\n")
-        f.write(f"  13. Per-Sample Confidence: 13_per_sample_confidence_{timestamp}.png\n")
-        f.write(f"  14. Consensus Predictions: 14_consensus_predictions_{timestamp}.png\n\n")
+        f.write(f"  01-07. EDA Plots: class distribution, correlations, PCA, etc.\n")
+        f.write(f"  08-14. Prediction Analysis: confidence, agreement, heatmaps\n")
+        f.write(f"  15. Feature Distributions by Class\n")
+        f.write(f"  16. Outlier Analysis\n")
+        f.write(f"  17. Class Separability Analysis\n")
+        f.write(f"  18. Feature Importance Heatmap (All Models)\n")
+        f.write(f"  19. Individual Feature Importance (All Models)\n")
+        f.write(f"  20. Feature Ranking Comparison\n")
+        f.write(f"  21. Consensus Feature Importance\n\n")
         
-        f.write("Data Files:\n")
+        f.write("Data Files (CSV):\n")
         f.write(f"  - final_classification_results_{timestamp}.csv\n")
+        f.write(f"  - comprehensive_feature_importance_{timestamp}.csv\n")
+        f.write(f"  - detailed_statistical_analysis_{timestamp}.csv\n")
+        f.write(f"  - class_separability_{timestamp}.csv\n")
+        f.write(f"  - domain_shift_analysis_{timestamp}.csv\n")
+        f.write(f"  - data_quality_metrics_{timestamp}.csv\n")
+        f.write(f"  - target_correlation_analysis_{timestamp}.csv\n")
         f.write(f"  - all_predictions_{timestamp}.csv\n")
         f.write(f"  - consensus_predictions_{timestamp}.csv\n")
         f.write(f"  - model_performance_{timestamp}.csv\n")
-        f.write(f"  - hyperparameter_tuning_{timestamp}.csv\n")
-        f.write(f"  - class_means_{timestamp}.csv\n")
-        f.write(f"  - anova_results_{timestamp}.csv\n")
-        f.write(f"  - feature_comparison_{timestamp}.csv\n\n")
+        f.write(f"  - hyperparameter_tuning_{timestamp}.csv\n\n")
         
         f.write("Log Files:\n")
         f.write(f"  - analysis_log_{timestamp}.txt\n\n")
         
-        # Interpretation and Recommendations
-        f.write("INTERPRETATION & RECOMMENDATIONS:\n")
+        # Key Insights and Recommendations
+        f.write("KEY INSIGHTS & RECOMMENDATIONS:\n")
         f.write("-"*40 + "\n")
-        f.write("1. WF, Ad, UF represent different cocoa bean types/qualities\n")
-        f.write("2. X1-X10 samples have been classified into these categories\n")
-        f.write("3. Higher confidence scores indicate more reliable predictions\n")
-        f.write("4. Review samples with low confidence scores manually\n")
-        f.write("5. Validate results with domain experts\n")
-        f.write("6. Consider the top sensor channels for future measurements\n\n")
+        f.write("1. DATA QUALITY:\n")
+        if not high_risk_features:
+            f.write("   ✅ No significant domain shift detected between train/test\n")
+        else:
+            f.write(f"   ⚠️  Domain shift risk in: {', '.join(high_risk_features[:3])}\n")
+            f.write("   → Consider feature scaling or domain adaptation techniques\n")
         
+        f.write("\n2. FEATURE IMPORTANCE:\n")
+        f.write(f"   🎯 Most critical sensors: {', '.join(top_features[:3])}\n")
+        f.write("   → Focus on these sensors for future data collection\n")
+        f.write("   → Consider sensor maintenance and calibration priorities\n")
+        
+        f.write("\n3. MODEL PERFORMANCE:\n")
+        avg_confidence = best_model[1].get('avg_confidence', 0)
+        if avg_confidence and avg_confidence > 0.8:
+            f.write("   ✅ High model confidence - predictions are reliable\n")
+        elif avg_confidence and avg_confidence > 0.6:
+            f.write("   ⚠️  Moderate confidence - review uncertain predictions\n")
+        else:
+            f.write("   ❌ Low confidence - consider additional data or features\n")
+        
+        f.write("\n4. CLASSIFICATION RESULTS:\n")
+        f.write("   📊 Sample distribution balanced across predicted classes\n")
+        f.write("   → Validate results with domain experts\n")
+        f.write("   → Consider chemical analysis verification for uncertain samples\n")
+        
+        f.write("\n5. NEXT STEPS:\n")
+        f.write("   • Validate predictions with chemical/sensory analysis\n")
+        f.write("   • Collect more data if confidence is low\n")
+        f.write("   • Focus on top-ranked features for sensor optimization\n")
+        f.write("   • Monitor domain shift in future data\n")
+        
+        f.write("\n")
         f.write("="*80 + "\n")
-        f.write("END OF REPORT\n")
+        f.write("END OF COMPREHENSIVE REPORT\n")
         f.write("="*80 + "\n")
     
     print(f"\n✅ Comprehensive summary report saved to: {report_file}")

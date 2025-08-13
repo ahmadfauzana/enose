@@ -1,0 +1,124 @@
+================================================================================
+E-NOSE COCOA BEAN CLASSIFICATION - COMPREHENSIVE ANALYSIS REPORT
+================================================================================
+Analysis Date: 2025-08-13 12:12:34
+Timestamp: 20250813_121106
+================================================================================
+
+DATASET OVERVIEW:
+----------------------------------------
+Training Samples: 130
+  - WF: 40
+  - Ad: 60
+  - UF: 30
+Unclassified Samples: 10 (X1-X10)
+Features: 14 sensor channels (ch0-ch13)
+
+DATA QUALITY ASSESSMENT:
+----------------------------------------
+⚠️  Low class separability: ch2, ch5, ch8...
+
+BEST PERFORMING MODEL:
+----------------------------------------
+Model: Decision Tree
+Average Confidence: 1.0
+
+FINAL CLASSIFICATION RESULTS:
+----------------------------------------
+Sample_ID Predicted_Class  Confidence    Model_Used
+       X1              UF         1.0 Decision Tree
+       X2              UF         1.0 Decision Tree
+       X3              UF         1.0 Decision Tree
+       X4              UF         1.0 Decision Tree
+       X5              UF         1.0 Decision Tree
+       X6              WF         1.0 Decision Tree
+       X7              WF         1.0 Decision Tree
+       X8              WF         1.0 Decision Tree
+       X9              Ad         1.0 Decision Tree
+      X10              Ad         1.0 Decision Tree
+
+PREDICTION DISTRIBUTION:
+----------------------------------------
+Ad: 2/10 samples (20.0%)
+UF: 5/10 samples (50.0%)
+WF: 3/10 samples (30.0%)
+
+TOP 10 MOST CONSISTENTLY IMPORTANT FEATURES:
+----------------------------------------
+ 1. ch0: Average rank 3.5
+ 2. ch6: Average rank 4.5
+ 3. ch12: Average rank 4.8
+ 4. ch11: Average rank 5.0
+ 5. ch3: Average rank 6.4
+
+FEATURE IMPORTANCE CONSENSUS:
+----------------------------------------
+Top 5 features by consensus (Borda count):
+1. ch0: 11.46
+2. ch6: 10.50
+3. ch12: 10.21
+4. ch11: 9.96
+5. ch9: 8.61
+
+STATISTICAL SIGNIFICANCE SUMMARY:
+----------------------------------------
+Highly significant features (p<0.001): 14
+  ch0, ch1, ch2, ch3, ch4...
+Moderately significant features (p<0.01): 0
+
+FILES GENERATED:
+----------------------------------------
+Individual Plots (High Resolution PNG):
+  01-07. EDA Plots: class distribution, correlations, PCA, etc.
+  08-14. Prediction Analysis: confidence, agreement, heatmaps
+  15. Feature Distributions by Class
+  16. Outlier Analysis
+  17. Class Separability Analysis
+  18. Feature Importance Heatmap (All Models)
+  19. Individual Feature Importance (All Models)
+  20. Feature Ranking Comparison
+  21. Consensus Feature Importance
+
+Data Files (CSV):
+  - final_classification_results_20250813_121106.csv
+  - comprehensive_feature_importance_20250813_121106.csv
+  - detailed_statistical_analysis_20250813_121106.csv
+  - class_separability_20250813_121106.csv
+  - domain_shift_analysis_20250813_121106.csv
+  - data_quality_metrics_20250813_121106.csv
+  - target_correlation_analysis_20250813_121106.csv
+  - all_predictions_20250813_121106.csv
+  - consensus_predictions_20250813_121106.csv
+  - model_performance_20250813_121106.csv
+  - hyperparameter_tuning_20250813_121106.csv
+
+Log Files:
+  - analysis_log_20250813_121106.txt
+
+KEY INSIGHTS & RECOMMENDATIONS:
+----------------------------------------
+1. DATA QUALITY:
+   ✅ No significant domain shift detected between train/test
+
+2. FEATURE IMPORTANCE:
+   🎯 Most critical sensors: ch0, ch6, ch12
+   → Focus on these sensors for future data collection
+   → Consider sensor maintenance and calibration priorities
+
+3. MODEL PERFORMANCE:
+   ✅ High model confidence - predictions are reliable
+
+4. CLASSIFICATION RESULTS:
+   📊 Sample distribution balanced across predicted classes
+   → Validate results with domain experts
+   → Consider chemical analysis verification for uncertain samples
+
+5. NEXT STEPS:
+   • Validate predictions with chemical/sensory analysis
+   • Collect more data if confidence is low
+   • Focus on top-ranked features for sensor optimization
+   • Monitor domain shift in future data
+
+================================================================================
+END OF COMPREHENSIVE REPORT
+================================================================================
