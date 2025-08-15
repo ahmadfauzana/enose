@@ -27,19 +27,33 @@ warnings.filterwarnings('ignore')
 plt.style.use('seaborn-v0_8')
 sns.set_palette("husl")
 
-# Create results directory
-RESULTS_DIR = "enose_analysis_results"
-if not os.path.exists(RESULTS_DIR):
-    os.makedirs(RESULTS_DIR)
-
-# Create subdirectories
-PLOTS_DIR = os.path.join(RESULTS_DIR, "plots")
-DATA_DIR = os.path.join(RESULTS_DIR, "data")
-LOGS_DIR = os.path.join(RESULTS_DIR, "logs")
-
-for dir_path in [PLOTS_DIR, DATA_DIR, LOGS_DIR]:
-    if not os.path.exists(dir_path):
+def create_run_directory():
+    """Create a new numbered directory for this analysis run"""
+    base_name = "enose_run"
+    counter = 1
+    
+    # Find the next available run number
+    while True:
+        run_dir = f"{base_name}_{counter:02d}"
+        if not os.path.exists(run_dir):
+            break
+        counter += 1
+    
+    # Create the main run directory
+    os.makedirs(run_dir)
+    
+    # Create subdirectories within the run directory
+    plots_dir = os.path.join(run_dir, "plots")
+    data_dir = os.path.join(run_dir, "data")
+    logs_dir = os.path.join(run_dir, "logs")
+    
+    for dir_path in [plots_dir, data_dir, logs_dir]:
         os.makedirs(dir_path)
+    
+    return run_dir, plots_dir, data_dir, logs_dir
+
+# Create run-specific directories
+RESULTS_DIR, PLOTS_DIR, DATA_DIR, LOGS_DIR = create_run_directory()
 
 # Set up logging to file
 class Logger:
@@ -63,7 +77,7 @@ class Logger:
 def setup_logging():
     """Set up logging with timestamp"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = os.path.join(LOGS_DIR, f"analysis_log_{timestamp}.txt")
+    log_filename = os.path.join(LOGS_DIR, f"analysis_log.txt")
     logger = Logger(log_filename)
     return logger, timestamp
 
@@ -121,7 +135,7 @@ def exploratory_data_analysis(train_data, test_data):
         plt.text(i, v + 1, str(v), ha='center', va='bottom')
     plt.tight_layout()
     
-    plot1_file = os.path.join(PLOTS_DIR, f"01_class_distribution_{timestamp}.png")
+    plot1_file = os.path.join(PLOTS_DIR, "01_class_distribution.png")
     plt.savefig(plot1_file, dpi=300, bbox_inches='tight')
     print(f"\n✅ Class distribution plot saved to: {plot1_file}")
     plt.close()
@@ -136,7 +150,7 @@ def exploratory_data_analysis(train_data, test_data):
     plt.xticks(rotation=45)
     plt.tight_layout()
     
-    plot2_file = os.path.join(PLOTS_DIR, f"02_sample_distribution_{timestamp}.png")
+    plot2_file = os.path.join(PLOTS_DIR, "02_sample_distribution.png")
     plt.savefig(plot2_file, dpi=300, bbox_inches='tight')
     print(f"✅ Sample distribution plot saved to: {plot2_file}")
     plt.close()
@@ -148,7 +162,7 @@ def exploratory_data_analysis(train_data, test_data):
     plt.title('Feature Correlation Matrix', fontsize=14)
     plt.tight_layout()
     
-    plot3_file = os.path.join(PLOTS_DIR, f"03_correlation_matrix_{timestamp}.png")
+    plot3_file = os.path.join(PLOTS_DIR, "03_correlation_matrix.png")
     plt.savefig(plot3_file, dpi=300, bbox_inches='tight')
     print(f"✅ Correlation matrix plot saved to: {plot3_file}")
     plt.close()
@@ -162,7 +176,7 @@ def exploratory_data_analysis(train_data, test_data):
     plt.xticks(rotation=45)
     plt.tight_layout()
     
-    plot4_file = os.path.join(PLOTS_DIR, f"04_sensor_boxplot_{timestamp}.png")
+    plot4_file = os.path.join(PLOTS_DIR, "04_sensor_boxplot.png")
     plt.savefig(plot4_file, dpi=300, bbox_inches='tight')
     print(f"✅ Sensor boxplot saved to: {plot4_file}")
     plt.close()
@@ -186,7 +200,7 @@ def exploratory_data_analysis(train_data, test_data):
     plt.ylabel('Features')
     plt.tight_layout()
     
-    plot5_file = os.path.join(PLOTS_DIR, f"05_feature_importance_{timestamp}.png")
+    plot5_file = os.path.join(PLOTS_DIR, "05_feature_importance.png")
     plt.savefig(plot5_file, dpi=300, bbox_inches='tight')
     print(f"✅ Feature importance plot saved to: {plot5_file}")
     plt.close()
@@ -217,7 +231,7 @@ def exploratory_data_analysis(train_data, test_data):
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     
-    plot6_file = os.path.join(PLOTS_DIR, f"06_pca_visualization_{timestamp}.png")
+    plot6_file = os.path.join(PLOTS_DIR, "06_pca_visualization.png")
     plt.savefig(plot6_file, dpi=300, bbox_inches='tight')
     print(f"✅ PCA visualization plot saved to: {plot6_file}")
     plt.close()
@@ -240,7 +254,7 @@ def exploratory_data_analysis(train_data, test_data):
     plt.legend()
     plt.tight_layout()
     
-    plot7_file = os.path.join(PLOTS_DIR, f"07_class_means_comparison_{timestamp}.png")
+    plot7_file = os.path.join(PLOTS_DIR, "07_class_means_comparison.png")
     plt.savefig(plot7_file, dpi=300, bbox_inches='tight')
     print(f"✅ Class means comparison plot saved to: {plot7_file}")
     plt.close()
@@ -253,7 +267,7 @@ def exploratory_data_analysis(train_data, test_data):
     print(class_means)
     
     # Save class means to CSV
-    class_means_file = os.path.join(DATA_DIR, f"class_means_{timestamp}.csv")
+    class_means_file = os.path.join(DATA_DIR, "class_means.csv")
     class_means.to_csv(class_means_file)
     print(f"\n✅ Class means saved to: {class_means_file}")
     
@@ -275,7 +289,7 @@ def exploratory_data_analysis(train_data, test_data):
     
     # Save ANOVA results
     anova_df = pd.DataFrame(anova_results)
-    anova_file = os.path.join(DATA_DIR, f"anova_results_{timestamp}.csv")
+    anova_file = os.path.join(DATA_DIR, "anova_results.csv")
     anova_df.to_csv(anova_file, index=False)
     print(f"\n✅ ANOVA results saved to: {anova_file}")
     
@@ -307,7 +321,7 @@ def exploratory_data_analysis(train_data, test_data):
     
     # Save feature comparison
     comparison_df = pd.DataFrame(feature_comparison)
-    comparison_file = os.path.join(DATA_DIR, f"feature_comparison_{timestamp}.csv")
+    comparison_file = os.path.join(DATA_DIR, "feature_comparison.csv")
     comparison_df.to_csv(comparison_file, index=False)
     print(f"\n✅ Feature comparison saved to: {comparison_file}")
     
@@ -344,7 +358,7 @@ def comprehensive_data_analysis(train_data, test_data, feature_cols):
         plt.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    dist_plot_file = os.path.join(PLOTS_DIR, f"15_feature_distributions_by_class_{timestamp}.png")
+    dist_plot_file = os.path.join(PLOTS_DIR, "15_feature_distributions_by_class.png")
     plt.savefig(dist_plot_file, dpi=300, bbox_inches='tight')
     print(f"✅ Feature distributions by class saved to: {dist_plot_file}")
     plt.close()
@@ -383,7 +397,7 @@ def comprehensive_data_analysis(train_data, test_data, feature_cols):
     
     # Save statistical results
     stats_df = pd.DataFrame(statistical_results)
-    stats_file = os.path.join(DATA_DIR, f"detailed_statistical_analysis_{timestamp}.csv")
+    stats_file = os.path.join(DATA_DIR, "detailed_statistical_analysis.csv")
     stats_df.to_csv(stats_file, index=False)
     print(f"\n✅ Detailed statistical analysis saved to: {stats_file}")
     
@@ -443,7 +457,7 @@ def comprehensive_data_analysis(train_data, test_data, feature_cols):
     plt.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    outlier_plot_file = os.path.join(PLOTS_DIR, f"16_outlier_analysis_{timestamp}.png")
+    outlier_plot_file = os.path.join(PLOTS_DIR, "16_outlier_analysis.png")
     plt.savefig(outlier_plot_file, dpi=300, bbox_inches='tight')
     print(f"✅ Outlier analysis plot saved to: {outlier_plot_file}")
     plt.close()
@@ -494,7 +508,7 @@ def comprehensive_data_analysis(train_data, test_data, feature_cols):
     }
     
     quality_df = pd.DataFrame(quality_metrics)
-    quality_file = os.path.join(DATA_DIR, f"data_quality_metrics_{timestamp}.csv")
+    quality_file = os.path.join(DATA_DIR, "data_quality_metrics.csv")
     quality_df.to_csv(quality_file, index=False)
     print(f"✅ Data quality metrics saved to: {quality_file}")
     
@@ -570,7 +584,7 @@ def comprehensive_data_analysis(train_data, test_data, feature_cols):
     plt.title('Inter-Class Distance Matrix (Euclidean Distance)')
     
     plt.tight_layout()
-    separability_plot_file = os.path.join(PLOTS_DIR, f"17_class_separability_{timestamp}.png")
+    separability_plot_file = os.path.join(PLOTS_DIR, "17_class_separability.png")
     plt.savefig(separability_plot_file, dpi=300, bbox_inches='tight')
     print(f"✅ Class separability analysis saved to: {separability_plot_file}")
     plt.close()
@@ -581,7 +595,7 @@ def comprehensive_data_analysis(train_data, test_data, feature_cols):
         'separability_score': separability_scores
     }).sort_values('separability_score', ascending=False)
     
-    separability_file = os.path.join(DATA_DIR, f"class_separability_{timestamp}.csv")
+    separability_file = os.path.join(DATA_DIR, "class_separability.csv")
     separability_df.to_csv(separability_file, index=False)
     print(f"✅ Class separability results saved to: {separability_file}")
     
@@ -625,7 +639,7 @@ def comprehensive_data_analysis(train_data, test_data, feature_cols):
     
     # Save domain shift analysis
     domain_shift_df = pd.DataFrame(domain_shift_results)
-    domain_shift_file = os.path.join(DATA_DIR, f"domain_shift_analysis_{timestamp}.csv")
+    domain_shift_file = os.path.join(DATA_DIR, "domain_shift_analysis.csv")
     domain_shift_df.to_csv(domain_shift_file, index=False)
     print(f"\n✅ Domain shift analysis saved to: {domain_shift_file}")
     
@@ -660,7 +674,7 @@ def comprehensive_data_analysis(train_data, test_data, feature_cols):
     
     # Save correlation analysis
     correlation_df = pd.DataFrame(target_correlations)
-    correlation_file = os.path.join(DATA_DIR, f"target_correlation_analysis_{timestamp}.csv")
+    correlation_file = os.path.join(DATA_DIR, "target_correlation_analysis.csv")
     correlation_df.to_csv(correlation_file, index=False)
     print(f"\n✅ Target correlation analysis saved to: {correlation_file}")
     
@@ -796,7 +810,7 @@ def comprehensive_feature_importance_analysis(models, tuned_models, X_train, y_t
     plt.yticks(rotation=0)
     plt.tight_layout()
     
-    importance_heatmap_file = os.path.join(PLOTS_DIR, f"18_feature_importance_heatmap_{timestamp}.png")
+    importance_heatmap_file = os.path.join(PLOTS_DIR, "18_feature_importance_heatmap.png")
     plt.savefig(importance_heatmap_file, dpi=300, bbox_inches='tight')
     print(f"✅ Feature importance heatmap saved to: {importance_heatmap_file}")
     plt.close()
@@ -829,7 +843,7 @@ def comprehensive_feature_importance_analysis(models, tuned_models, X_train, y_t
                     ha='center', va='bottom', fontsize=8)
     
     plt.tight_layout()
-    individual_importance_file = os.path.join(PLOTS_DIR, f"19_individual_feature_importance_{timestamp}.png")
+    individual_importance_file = os.path.join(PLOTS_DIR, "19_individual_feature_importance.png")
     plt.savefig(individual_importance_file, dpi=300, bbox_inches='tight')
     print(f"✅ Individual feature importance plots saved to: {individual_importance_file}")
     plt.close()
@@ -867,7 +881,7 @@ def comprehensive_feature_importance_analysis(models, tuned_models, X_train, y_t
     plt.yticks(rotation=0)
     plt.tight_layout()
     
-    ranking_heatmap_file = os.path.join(PLOTS_DIR, f"20_feature_ranking_comparison_{timestamp}.png")
+    ranking_heatmap_file = os.path.join(PLOTS_DIR, "20_feature_ranking_comparison.png")
     plt.savefig(ranking_heatmap_file, dpi=300, bbox_inches='tight')
     print(f"✅ Feature ranking comparison saved to: {ranking_heatmap_file}")
     plt.close()
@@ -911,7 +925,7 @@ def comprehensive_feature_importance_analysis(models, tuned_models, X_train, y_t
                     ha='center', va='bottom', fontsize=8, fontweight='bold')
     
     plt.tight_layout()
-    consensus_importance_file = os.path.join(PLOTS_DIR, f"21_consensus_feature_importance_{timestamp}.png")
+    consensus_importance_file = os.path.join(PLOTS_DIR, "21_consensus_feature_importance.png")
     plt.savefig(consensus_importance_file, dpi=300, bbox_inches='tight')
     print(f"✅ Consensus feature importance saved to: {consensus_importance_file}")
     plt.close()
@@ -943,7 +957,7 @@ def comprehensive_feature_importance_analysis(models, tuned_models, X_train, y_t
             })
     
     importance_df = pd.DataFrame(importance_data)
-    importance_file = os.path.join(DATA_DIR, f"comprehensive_feature_importance_{timestamp}.csv")
+    importance_file = os.path.join(DATA_DIR, "comprehensive_feature_importance.csv")
     importance_df.to_csv(importance_file, index=False)
     print(f"\n✅ Comprehensive feature importance saved to: {importance_file}")
     
@@ -977,6 +991,410 @@ def comprehensive_feature_importance_analysis(models, tuned_models, X_train, y_t
         'rankings': rankings,
         'consensus_scores': consensus_scores,
         'top_features': top_features
+    }
+
+def class_profile_correlation_analysis(train_data, test_data, feature_cols):
+    """Analyze correlation and confusion patterns based on mean class profiles from 14 sensors"""
+    print("\n" + "="*60)
+    print("CLASS PROFILE CORRELATION & CONFUSION ANALYSIS")
+    print("="*60)
+    
+    # 1. Calculate mean sensor profiles for each class
+    print("\n1. CALCULATING CLASS SENSOR PROFILES")
+    print("-" * 40)
+    
+    class_profiles = train_data.groupby('class')[feature_cols].mean()
+    class_stds = train_data.groupby('class')[feature_cols].std()
+    
+    print("Mean sensor values by class:")
+    print(class_profiles)
+    print("\nStandard deviations by class:")
+    print(class_stds)
+    
+    # Save class profiles
+    profile_file = os.path.join(DATA_DIR, "detailed_class_profiles.csv")
+    
+    # Combine means and stds
+    combined_profiles = pd.DataFrame()
+    for class_name in class_profiles.index:
+        for stat_type, data in [('mean', class_profiles), ('std', class_stds)]:
+            for feature in feature_cols:
+                combined_profiles.loc[f'{class_name}_{stat_type}', feature] = data.loc[class_name, feature]
+    
+    combined_profiles.to_csv(profile_file)
+    print(f"\n✅ Detailed class profiles saved to: {profile_file}")
+    
+    # 2. Inter-class correlation analysis
+    print("\n2. INTER-CLASS CORRELATION ANALYSIS")
+    print("-" * 40)
+    
+    # Calculate correlations between class profiles
+    class_correlations = class_profiles.T.corr()
+    print("Correlation matrix between class sensor profiles:")
+    print(class_correlations)
+    
+    # Visualize class profile correlations
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(class_correlations, 
+                annot=True, 
+                cmap='RdBu_r', 
+                center=0,
+                square=True,
+                linewidths=0.5,
+                cbar_kws={'label': 'Correlation Coefficient'})
+    plt.title('Inter-Class Correlation Matrix\n(Based on Mean Sensor Profiles)', fontsize=14)
+    plt.tight_layout()
+    
+    correlation_plot_file = os.path.join(PLOTS_DIR, "22_class_correlation_matrix.png")
+    plt.savefig(correlation_plot_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Class correlation matrix saved to: {correlation_plot_file}")
+    plt.close()
+    
+    # 3. Class similarity/confusion analysis
+    print("\n3. CLASS SIMILARITY ANALYSIS")
+    print("-" * 40)
+    
+    # Calculate different distance metrics between classes
+    from scipy.spatial.distance import pdist, squareform
+    
+    distance_metrics = {
+        'Euclidean': 'euclidean',
+        'Manhattan': 'cityblock', 
+        'Cosine': 'cosine',
+        'Correlation': 'correlation'
+    }
+    
+    similarity_matrices = {}
+    
+    plt.figure(figsize=(16, 12))
+    
+    for i, (metric_name, metric) in enumerate(distance_metrics.items()):
+        # Calculate distance matrix
+        distances = pdist(class_profiles.values, metric=metric)
+        distance_matrix = squareform(distances)
+        
+        # Convert to similarity (1 - normalized distance)
+        if metric == 'cosine' or metric == 'correlation':
+            similarity_matrix = 1 - distance_matrix
+        else:
+            max_dist = distance_matrix.max()
+            similarity_matrix = 1 - (distance_matrix / max_dist) if max_dist > 0 else np.ones_like(distance_matrix)
+        
+        similarity_matrices[metric_name] = similarity_matrix
+        
+        # Plot
+        plt.subplot(2, 2, i + 1)
+        sns.heatmap(similarity_matrix,
+                    xticklabels=class_profiles.index,
+                    yticklabels=class_profiles.index,
+                    annot=True,
+                    fmt='.3f',
+                    cmap='YlOrRd',
+                    square=True,
+                    cbar_kws={'label': 'Similarity Score'})
+        plt.title(f'{metric_name} Similarity Matrix')
+        
+        # Print similarity scores
+        print(f"\n{metric_name} Similarity Scores:")
+        classes = class_profiles.index.tolist()
+        for j in range(len(classes)):
+            for k in range(j+1, len(classes)):
+                sim_score = similarity_matrix[j, k]
+                print(f"  {classes[j]} vs {classes[k]}: {sim_score:.3f}")
+    
+    plt.tight_layout()
+    similarity_plot_file = os.path.join(PLOTS_DIR, "23_class_similarity_matrices.png")
+    plt.savefig(similarity_plot_file, dpi=300, bbox_inches='tight')
+    print(f"\n✅ Class similarity matrices saved to: {similarity_plot_file}")
+    plt.close()
+    
+    # 4. Sensor-wise class discrimination analysis
+    print("\n4. SENSOR-WISE CLASS DISCRIMINATION")
+    print("-" * 40)
+    
+    discrimination_scores = []
+    
+    for feature in feature_cols:
+        feature_values = class_profiles[feature].values
+        
+        # Calculate coefficient of variation across classes
+        mean_val = np.mean(feature_values)
+        std_val = np.std(feature_values)
+        cv = std_val / mean_val if mean_val != 0 else 0
+        
+        # Calculate range ratio
+        range_val = np.max(feature_values) - np.min(feature_values)
+        range_ratio = range_val / np.max(feature_values) if np.max(feature_values) != 0 else 0
+        
+        # Calculate relative standard deviation
+        rel_std = std_val / np.mean(np.abs(feature_values)) if np.mean(np.abs(feature_values)) != 0 else 0
+        
+        discrimination_scores.append({
+            'feature': feature,
+            'coefficient_variation': cv,
+            'range_ratio': range_ratio,
+            'relative_std': rel_std,
+            'mean_across_classes': mean_val,
+            'std_across_classes': std_val
+        })
+        
+        print(f"{feature}: CV={cv:.3f}, Range Ratio={range_ratio:.3f}, Rel Std={rel_std:.3f}")
+    
+    # Convert to DataFrame and save
+    discrimination_df = pd.DataFrame(discrimination_scores)
+    discrimination_file = os.path.join(DATA_DIR, "sensor_discrimination_analysis.csv")
+    discrimination_df.to_csv(discrimination_file, index=False)
+    print(f"\n✅ Sensor discrimination analysis saved to: {discrimination_file}")
+    
+    # 5. Radar chart for class profiles
+    print("\n5. CREATING CLASS PROFILE RADAR CHARTS")
+    print("-" * 40)
+    
+    # Normalize profiles for radar chart (0-1 scale)
+    normalized_profiles = class_profiles.copy()
+    for feature in feature_cols:
+        min_val = normalized_profiles[feature].min()
+        max_val = normalized_profiles[feature].max()
+        if max_val > min_val:
+            normalized_profiles[feature] = (normalized_profiles[feature] - min_val) / (max_val - min_val)
+        else:
+            normalized_profiles[feature] = 0.5  # If no variation, set to middle
+    
+    # Create radar chart
+    fig, ax = plt.subplots(figsize=(12, 12), subplot_kw=dict(projection='polar'))
+    
+    # Number of features
+    N = len(feature_cols)
+    
+    # Angle for each feature
+    angles = [n / float(N) * 2 * np.pi for n in range(N)]
+    angles += angles[:1]  # Complete the circle
+    
+    # Colors for each class
+    colors = ['red', 'blue', 'green']
+    
+    for i, (class_name, profile) in enumerate(normalized_profiles.iterrows()):
+        values = profile.tolist()
+        values += values[:1]  # Complete the circle
+        
+        ax.plot(angles, values, 'o-', linewidth=2, label=class_name, color=colors[i])
+        ax.fill(angles, values, alpha=0.25, color=colors[i])
+    
+    # Add feature labels
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(feature_cols)
+    
+    # Set y-axis limits
+    ax.set_ylim(0, 1)
+    ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
+    ax.set_yticklabels(['0.2', '0.4', '0.6', '0.8', '1.0'])
+    ax.grid(True)
+    
+    plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
+    plt.title('Class Sensor Profiles (Normalized)\nRadar Chart Comparison', size=16, pad=20)
+    
+    radar_plot_file = os.path.join(PLOTS_DIR, "24_class_profile_radar.png")
+    plt.savefig(radar_plot_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Class profile radar chart saved to: {radar_plot_file}")
+    plt.close()
+    
+    # 6. Test data projection onto class profiles
+    print("\n6. TEST DATA PROJECTION ANALYSIS")
+    print("-" * 40)
+    
+    # Calculate similarity of test samples to each class profile
+    test_similarities = {}
+    
+    for metric_name, metric in distance_metrics.items():
+        similarities = []
+        
+        for idx, test_sample in test_data.iterrows():
+            test_values = test_sample[feature_cols].values
+            
+            # Ensure test_values is a proper numpy array
+            if not isinstance(test_values, np.ndarray):
+                test_values = np.array(test_values)
+            
+            # Handle case where we might have a single value or malformed data
+            if test_values.ndim == 0:
+                test_values = np.array([test_values])
+            elif test_values.ndim > 1:
+                test_values = test_values.flatten()
+            
+            # Ensure we have the right number of features
+            if len(test_values) != len(feature_cols):
+                print(f"Warning: Sample {test_sample.get('sample_id', idx)} has {len(test_values)} features, expected {len(feature_cols)}")
+                continue
+                
+            sample_similarities = {}
+            
+            for class_name in class_profiles.index:
+                class_values = class_profiles.loc[class_name].values
+                
+                # Ensure class_values is also a proper array
+                if not isinstance(class_values, np.ndarray):
+                    class_values = np.array(class_values)
+                
+                if class_values.ndim == 0:
+                    class_values = np.array([class_values])
+                elif class_values.ndim > 1:
+                    class_values = class_values.flatten()
+                
+                # Calculate distance/similarity
+                try:
+                    if metric == 'euclidean':
+                        dist = np.linalg.norm(test_values - class_values)
+                        max_possible_dist = np.linalg.norm(class_profiles.max().values - class_profiles.min().values)
+                        similarity = 1 - (dist / max_possible_dist) if max_possible_dist > 0 else 1
+                        
+                    elif metric == 'cosine':
+                        # Handle potential zero vectors
+                        test_norm = np.linalg.norm(test_values)
+                        class_norm = np.linalg.norm(class_values)
+                        
+                        if test_norm == 0 or class_norm == 0:
+                            similarity = 0
+                        else:
+                            dot_product = np.dot(test_values, class_values)
+                            similarity = dot_product / (test_norm * class_norm)
+                            similarity = (similarity + 1) / 2  # Convert from [-1,1] to [0,1]
+                            
+                    elif metric == 'correlation':
+                        # Fixed correlation calculation
+                        try:
+                            if len(test_values) > 1 and len(class_values) > 1:
+                                # Ensure we have proper arrays for correlation
+                                test_array = np.asarray(test_values).flatten()
+                                class_array = np.asarray(class_values).flatten()
+                                
+                                # Check for constant arrays (zero variance)
+                                if np.std(test_array) == 0 or np.std(class_array) == 0:
+                                    similarity = 0
+                                else:
+                                    # Calculate correlation with proper array handling
+                                    if len(test_array) == len(class_array):
+                                        corr = np.corrcoef(test_array, class_array)[0, 1]
+                                        if np.isnan(corr) or np.isinf(corr):
+                                            similarity = 0
+                                        else:
+                                            similarity = (corr + 1) / 2  # Convert from [-1,1] to [0,1]
+                                    else:
+                                        similarity = 0
+                            else:
+                                similarity = 0
+                        except Exception:
+                            # Fallback for any correlation calculation errors
+                            similarity = 0
+                            
+                    else:  # cityblock (Manhattan)
+                        dist = np.sum(np.abs(test_values - class_values))
+                        max_possible_dist = np.sum(np.abs(class_profiles.max().values - class_profiles.min().values))
+                        similarity = 1 - (dist / max_possible_dist) if max_possible_dist > 0 else 1
+                    
+                    # Ensure similarity is a valid number
+                    if np.isnan(similarity) or np.isinf(similarity):
+                        similarity = 0
+                    
+                    # Clamp similarity to [0, 1] range
+                    similarity = max(0, min(1, similarity))
+                    
+                except Exception as e:
+                    print(f"Warning: Error calculating {metric} similarity for sample {test_sample.get('sample_id', idx)} and class {class_name}: {e}")
+                    similarity = 0
+                
+                sample_similarities[class_name] = similarity
+            
+            similarities.append(sample_similarities)
+        
+        test_similarities[metric_name] = similarities
+    
+    # Create visualization of test sample similarities
+    plt.figure(figsize=(16, 12))
+    
+    for i, (metric_name, similarities) in enumerate(test_similarities.items()):
+        plt.subplot(2, 2, i + 1)
+        
+        # Create matrix: rows = test samples, columns = classes
+        similarity_matrix = np.zeros((len(test_data), len(class_profiles.index)))
+        
+        for sample_idx, sample_sim in enumerate(similarities):
+            for class_idx, class_name in enumerate(class_profiles.index):
+                similarity_matrix[sample_idx, class_idx] = sample_sim[class_name]
+        
+        sns.heatmap(similarity_matrix,
+                    xticklabels=class_profiles.index,
+                    yticklabels=test_data['sample_id'].tolist(),
+                    annot=True,
+                    fmt='.3f',
+                    cmap='YlGnBu',
+                    cbar_kws={'label': 'Similarity Score'})
+        plt.title(f'Test Sample Similarities ({metric_name})')
+        plt.xlabel('Training Classes')
+        plt.ylabel('Test Samples')
+    
+    plt.tight_layout()
+    test_similarity_plot_file = os.path.join(PLOTS_DIR, "25_test_sample_similarities.png")
+    plt.savefig(test_similarity_plot_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Test sample similarities saved to: {test_similarity_plot_file}")
+    plt.close()
+    
+    # 7. Save all similarity results
+    all_similarity_data = []
+    
+    for metric_name, similarities in test_similarities.items():
+        for sample_idx, sample_sim in enumerate(similarities):
+            sample_id = test_data.iloc[sample_idx]['sample_id']
+            for class_name, similarity in sample_sim.items():
+                all_similarity_data.append({
+                    'sample_id': sample_id,
+                    'metric': metric_name,
+                    'class': class_name,
+                    'similarity_score': similarity
+                })
+    
+    similarity_results_df = pd.DataFrame(all_similarity_data)
+    similarity_results_file = os.path.join(DATA_DIR, "test_sample_class_similarities.csv")
+    similarity_results_df.to_csv(similarity_results_file, index=False)
+    print(f"\n✅ Test sample class similarities saved to: {similarity_results_file}")
+    
+    # 8. Summary of findings
+    print("\n7. CORRELATION & SIMILARITY SUMMARY")
+    print("-" * 40)
+    
+    # Most similar classes
+    euclidean_sim = similarity_matrices['Euclidean']
+    np.fill_diagonal(euclidean_sim, 0)  # Remove self-similarity
+    max_sim_idx = np.unravel_index(np.argmax(euclidean_sim), euclidean_sim.shape)
+    classes = class_profiles.index.tolist()
+    most_similar_pair = (classes[max_sim_idx[0]], classes[max_sim_idx[1]])
+    max_similarity = euclidean_sim[max_sim_idx]
+    
+    print(f"Most similar class pair: {most_similar_pair[0]} vs {most_similar_pair[1]}")
+    print(f"Euclidean similarity: {max_similarity:.3f}")
+    
+    # Most discriminative sensors
+    discrimination_df_sorted = discrimination_df.sort_values('coefficient_variation', ascending=False)
+    print(f"\nMost discriminative sensors (by coefficient of variation):")
+    for i, (_, row) in enumerate(discrimination_df_sorted.head(5).iterrows()):
+        print(f"{i+1}. {row['feature']}: CV = {row['coefficient_variation']:.3f}")
+    
+    # Average similarities for each test sample
+    print(f"\nTest sample classification tendencies (Euclidean similarity):")
+    euclidean_similarities = test_similarities['Euclidean']
+    for sample_idx, sample_sim in enumerate(euclidean_similarities):
+        sample_id = test_data.iloc[sample_idx]['sample_id']
+        best_match = max(sample_sim, key=sample_sim.get)
+        best_score = sample_sim[best_match]
+        print(f"{sample_id}: Most similar to {best_match} (similarity: {best_score:.3f})")
+    
+    return {
+        'class_profiles': class_profiles,
+        'class_correlations': class_correlations,
+        'similarity_matrices': similarity_matrices,
+        'discrimination_scores': discrimination_df,
+        'test_similarities': test_similarities,
+        'most_similar_pair': most_similar_pair,
+        'max_similarity': max_similarity
     }
 
 def prepare_data_for_modeling(train_data, test_data, feature_cols):
@@ -1072,7 +1490,7 @@ def train_multiple_models(X_train, X_val, y_train, y_val):
         })
     
     performance_df = pd.DataFrame(performance_data)
-    performance_file = os.path.join(DATA_DIR, f"model_performance_{timestamp}.csv")
+    performance_file = os.path.join(DATA_DIR, "model_performance.csv")
     performance_df.to_csv(performance_file, index=False)
     print(f"\n✅ Model performance results saved to: {performance_file}")
     
@@ -1139,7 +1557,7 @@ def hyperparameter_tuning(X_train, y_train):
         })
     
     tuning_df = pd.DataFrame(tuning_data)
-    tuning_file = os.path.join(DATA_DIR, f"hyperparameter_tuning_{timestamp}.csv")
+    tuning_file = os.path.join(DATA_DIR, "hyperparameter_tuning.csv")
     tuning_df.to_csv(tuning_file, index=False)
     print(f"\n✅ Hyperparameter tuning results saved to: {tuning_file}")
     
@@ -1547,6 +1965,9 @@ def main():
             model_results, tuned_models, X_train_full, y_train_full, feature_cols
         )
         
+        # Class profile correlation and confusion analysis
+        class_analysis = class_profile_correlation_analysis(train_data, test_data, feature_cols)
+        
         # Make predictions on unclassified samples
         all_predictions, prediction_probabilities = predict_unclassified_samples(model_results, tuned_models, X_test, test_sample_ids)
         
@@ -1628,23 +2049,33 @@ def main():
         print("="*60)
         
         # Create comprehensive summary report
-        create_summary_report(timestamp, train_data, test_data, feature_cols, 
-                             best_model, results_df, feature_importance_analysis, comprehensive_analysis)
+        create_summary_report(
+            timestamp=timestamp, 
+            train_data=train_data, 
+            test_data=test_data, 
+            feature_cols=feature_cols,
+            best_model=best_model, 
+            results_df=results_df, 
+            feature_importance_analysis=feature_importance_analysis, 
+            comprehensive_analysis=comprehensive_analysis
+        )
         
         # Close logging
         print(f"\n" + "="*60)
         print("ANALYSIS COMPLETE - ALL RESULTS SAVED")
         print("="*60)
         print(f"📁 Results directory: {RESULTS_DIR}")
-        print(f"📊 Individual plots (21 files) saved in: {PLOTS_DIR}")
-        print(f"📋 Data files (11 CSV files) saved in: {DATA_DIR}")
+        print(f"📊 Individual plots (25 files) saved in: {PLOTS_DIR}")
+        print(f"📋 Data files (15 CSV files) saved in: {DATA_DIR}")
         print(f"📝 Log files saved in: {LOGS_DIR}")
         print(f"📄 Summary report: ANALYSIS_SUMMARY_REPORT_{timestamp}.txt")
         print("="*60)
-        print("\n🎉 Comprehensive analysis complete with individual, high-quality files!")
-        print("   • 21 individual plots covering all aspects of the analysis")
-        print("   • 11 CSV files with detailed results and metrics")
+        print("\n🎉 Comprehensive analysis complete with correlation & confusion analysis!")
+        print("   • 25 individual plots covering all aspects including class correlations")
+        print("   • 15 CSV files with detailed results and class similarity metrics")
         print("   • Feature importance analyzed across ALL models and methods")
+        print("   • Class profile correlation and confusion matrix analysis")
+        print("   • Test sample similarity to training classes analysis")
         print("   • Comprehensive data quality and influence factor analysis")
         print("   Each file can be used separately in presentations or publications.")
         
@@ -1787,7 +2218,11 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
         f.write(f"  18. Feature Importance Heatmap (All Models)\n")
         f.write(f"  19. Individual Feature Importance (All Models)\n")
         f.write(f"  20. Feature Ranking Comparison\n")
-        f.write(f"  21. Consensus Feature Importance\n\n")
+        f.write(f"  21. Consensus Feature Importance\n")
+        f.write(f"  22. Class Correlation Matrix\n")
+        f.write(f"  23. Class Similarity Matrices\n")
+        f.write(f"  24. Class Profile Radar Chart\n")
+        f.write(f"  25. Test Sample Similarities\n\n")
         
         f.write("Data Files (CSV):\n")
         f.write(f"  - final_classification_results_{timestamp}.csv\n")
@@ -1800,7 +2235,10 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
         f.write(f"  - all_predictions_{timestamp}.csv\n")
         f.write(f"  - consensus_predictions_{timestamp}.csv\n")
         f.write(f"  - model_performance_{timestamp}.csv\n")
-        f.write(f"  - hyperparameter_tuning_{timestamp}.csv\n\n")
+        f.write(f"  - hyperparameter_tuning_{timestamp}.csv\n")
+        f.write(f"  - detailed_class_profiles_{timestamp}.csv\n")
+        f.write(f"  - sensor_discrimination_analysis_{timestamp}.csv\n")
+        f.write(f"  - test_sample_class_similarities_{timestamp}.csv\n\n")
         
         f.write("Log Files:\n")
         f.write(f"  - analysis_log_{timestamp}.txt\n\n")

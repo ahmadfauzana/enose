@@ -1,8 +1,8 @@
 ================================================================================
 E-NOSE COCOA BEAN CLASSIFICATION - COMPREHENSIVE ANALYSIS REPORT
 ================================================================================
-Analysis Date: 2025-08-13 12:16:07
-Timestamp: 20250813_121439
+Analysis Date: 2025-08-15 09:07:24
+Timestamp: 20250815_090558
 ================================================================================
 
 DATASET OVERVIEW:
@@ -78,22 +78,29 @@ Individual Plots (High Resolution PNG):
   19. Individual Feature Importance (All Models)
   20. Feature Ranking Comparison
   21. Consensus Feature Importance
+  22. Class Correlation Matrix
+  23. Class Similarity Matrices
+  24. Class Profile Radar Chart
+  25. Test Sample Similarities
 
 Data Files (CSV):
-  - final_classification_results_20250813_121439.csv
-  - comprehensive_feature_importance_20250813_121439.csv
-  - detailed_statistical_analysis_20250813_121439.csv
-  - class_separability_20250813_121439.csv
-  - domain_shift_analysis_20250813_121439.csv
-  - data_quality_metrics_20250813_121439.csv
-  - target_correlation_analysis_20250813_121439.csv
-  - all_predictions_20250813_121439.csv
-  - consensus_predictions_20250813_121439.csv
-  - model_performance_20250813_121439.csv
-  - hyperparameter_tuning_20250813_121439.csv
+  - final_classification_results_20250815_090558.csv
+  - comprehensive_feature_importance_20250815_090558.csv
+  - detailed_statistical_analysis_20250815_090558.csv
+  - class_separability_20250815_090558.csv
+  - domain_shift_analysis_20250815_090558.csv
+  - data_quality_metrics_20250815_090558.csv
+  - target_correlation_analysis_20250815_090558.csv
+  - all_predictions_20250815_090558.csv
+  - consensus_predictions_20250815_090558.csv
+  - model_performance_20250815_090558.csv
+  - hyperparameter_tuning_20250815_090558.csv
+  - detailed_class_profiles_20250815_090558.csv
+  - sensor_discrimination_analysis_20250815_090558.csv
+  - test_sample_class_similarities_20250815_090558.csv
 
 Log Files:
-  - analysis_log_20250813_121439.txt
+  - analysis_log_20250815_090558.txt
 
 KEY INSIGHTS & RECOMMENDATIONS:
 ----------------------------------------
