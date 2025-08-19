@@ -4,14 +4,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.metrics import (classification_report, confusion_matrix, accuracy_score, f1_score,
+                           precision_score, recall_score, matthews_corrcoef)
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.feature_selection import mutual_info_classif, chi2, SelectKBest
 from sklearn.inspection import permutation_importance
 from sklearn.decomposition import PCA
@@ -98,6 +97,10 @@ def load_and_preprocess_data():
     # Clean column names and handle the unnamed first column
     train_data.columns = ['class'] + [f'ch{i}' for i in range(14)]
     test_data.columns = ['sample_id'] + [f'ch{i}' for i in range(14)]  # X1-X10 are sample IDs, not classes
+    
+    # Update class names: WF->WFB, UF->UFB, Ad->ADB
+    class_mapping = {'WF': 'WFB', 'UF': 'UFB', 'Ad': 'ADB'}
+    train_data['class'] = train_data['class'].map(class_mapping)
     
     # Remove any rows with missing values
     train_data = train_data.dropna()
@@ -1429,27 +1432,163 @@ def prepare_data_for_modeling(train_data, test_data, feature_cols):
     
     return X_train_scaled, X_test_scaled, y_train, test_sample_ids, X_train_split, X_val_split, y_train_split, y_val_split, scaler
 
+def calculate_comprehensive_metrics(y_true, y_pred, class_labels):
+    """Calculate comprehensive evaluation metrics"""
+    from sklearn.metrics import (precision_score, recall_score, f1_score, 
+                                matthews_corrcoef, accuracy_score, confusion_matrix)
+    
+    # Calculate metrics
+    accuracy = accuracy_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
+    recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
+    f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
+    mcc = matthews_corrcoef(y_true, y_pred)
+    
+    # Calculate specificity (per class, then weighted average)
+    cm = confusion_matrix(y_true, y_pred, labels=class_labels)
+    specificities = []
+    
+    for i, class_label in enumerate(class_labels):
+        # For multiclass: specificity = TN / (TN + FP)
+        tn = np.sum(cm) - (np.sum(cm[i, :]) + np.sum(cm[:, i]) - cm[i, i])
+        fp = np.sum(cm[:, i]) - cm[i, i]
+        
+        if (tn + fp) > 0:
+            specificity = tn / (tn + fp)
+        else:
+            specificity = 0.0
+        specificities.append(specificity)
+    
+    # Weighted average specificity
+    class_counts = [np.sum(y_true == label) for label in class_labels]
+    total_samples = sum(class_counts)
+    weighted_specificity = sum(spec * count / total_samples 
+                              for spec, count in zip(specificities, class_counts))
+    
+    return {
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'specificity': weighted_specificity,
+        'f1_score': f1,
+        'mcc': mcc
+    }
+
+def create_confusion_matrices_visualization(models, X_val, y_val, class_labels):
+    """Create confusion matrix visualizations for all models"""
+    print("\n" + "="*50)
+    print("CREATING CONFUSION MATRICES")
+    print("="*50)
+    
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    axes = axes.flatten()
+    
+    model_names = list(models.keys())
+    
+    for idx, (model_name, model_info) in enumerate(models.items()):
+        if idx >= 6:  # We only have 6 subplots (2x3)
+            break
+            
+        model = model_info['model']
+        y_pred = model.predict(X_val)
+        
+        # Calculate confusion matrix
+        cm = confusion_matrix(y_val, y_pred, labels=class_labels)
+        
+        # Calculate accuracy
+        accuracy = accuracy_score(y_val, y_pred)
+        
+        # Create heatmap
+        ax = axes[idx]
+        
+        # Create annotations with both count and percentage
+        total_samples = np.sum(cm)
+        annotations = []
+        for i in range(len(class_labels)):
+            row_annotations = []
+            for j in range(len(class_labels)):
+                count = cm[i, j]
+                percentage = (count / total_samples) * 100
+                if i == j:  # Diagonal (correct predictions)
+                    row_annotations.append(f'{count}\n{percentage:.1f}%')
+                else:  # Off-diagonal (incorrect predictions)
+                    row_annotations.append(f'{count}\n{percentage:.1f}%')
+            annotations.append(row_annotations)
+        
+        # Create color map: green for correct, red/pink for incorrect
+        colors = np.zeros_like(cm, dtype=float)
+        for i in range(len(class_labels)):
+            for j in range(len(class_labels)):
+                if i == j:  # Correct predictions (diagonal)
+                    colors[i, j] = 1.0  # Green
+                else:  # Incorrect predictions
+                    colors[i, j] = 0.3  # Red/Pink
+        
+        # Plot heatmap
+        im = ax.imshow(colors, cmap='RdYlGn', alpha=0.7, vmin=0, vmax=1)
+        
+        # Add text annotations
+        for i in range(len(class_labels)):
+            for j in range(len(class_labels)):
+                if i == j:  # Diagonal - use white text on green
+                    text_color = 'white'
+                    weight = 'bold'
+                else:  # Off-diagonal - use black text
+                    text_color = 'black'
+                    weight = 'normal'
+                
+                ax.text(j, i, annotations[i][j], ha='center', va='center',
+                       color=text_color, fontsize=10, weight=weight)
+        
+        # Customize axes
+        ax.set_xticks(range(len(class_labels)))
+        ax.set_yticks(range(len(class_labels)))
+        ax.set_xticklabels(class_labels)
+        ax.set_yticklabels(class_labels)
+        ax.set_xlabel('Predicted Class')
+        ax.set_ylabel('Actual Class')
+        ax.set_title(f'{model_name}\nAccuracy: {accuracy:.1%}', fontsize=12, fontweight='bold')
+        
+        # Add grid
+        ax.set_xticks(np.arange(len(class_labels)+1)-0.5, minor=True)
+        ax.set_yticks(np.arange(len(class_labels)+1)-0.5, minor=True)
+        ax.grid(which='minor', color='black', linestyle='-', linewidth=1)
+        ax.tick_params(which='minor', size=0)
+    
+    # Hide any unused subplots
+    for idx in range(len(models), 6):
+        axes[idx].set_visible(False)
+    
+    plt.tight_layout()
+    confusion_matrices_file = os.path.join(PLOTS_DIR, "08_confusion_matrices.png")
+    plt.savefig(confusion_matrices_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Confusion matrices saved to: {confusion_matrices_file}")
+    plt.close()
+
 def train_multiple_models(X_train, X_val, y_train, y_val):
-    """Train multiple machine learning models"""
+    """Train multiple machine learning models with comprehensive evaluation"""
     print("\n" + "="*50)
     print("MODEL TRAINING AND EVALUATION")
     print("="*50)
     
-    # Define models
+    # Define models - only the 5 specified models
     models = {
         'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
         'Support Vector Machine': SVC(random_state=42, probability=True),
-        'Logistic Regression': LogisticRegression(random_state=42, max_iter=1000),
-        'Gradient Boosting': GradientBoostingClassifier(random_state=42),
         'K-Nearest Neighbors': KNeighborsClassifier(),
-        'Naive Bayes': GaussianNB(),
         'Neural Network': MLPClassifier(random_state=42, max_iter=1000),
-        'Decision Tree': DecisionTreeClassifier(random_state=42)
+        'Naive Bayes': GaussianNB()
     }
+    
+    # Get class labels
+    class_labels = sorted(y_train.unique())
     
     # Train models and store results
     results = {}
     trained_models = {}
+    
+    print(f"Training {len(models)} models: {', '.join(models.keys())}")
+    print("-" * 60)
     
     for name, model in models.items():
         print(f"\nTraining {name}...")
@@ -1460,31 +1599,48 @@ def train_multiple_models(X_train, X_val, y_train, y_val):
         
         # Validate on validation set
         val_pred = model.predict(X_val)
-        val_accuracy = accuracy_score(y_val, val_pred)
-        val_f1 = f1_score(y_val, val_pred, average='weighted')
+        
+        # Calculate comprehensive metrics
+        metrics = calculate_comprehensive_metrics(y_val, val_pred, class_labels)
         
         # Cross-validation on training set
         cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='accuracy')
         
         results[name] = {
-            'validation_accuracy': val_accuracy,
-            'validation_f1': val_f1,
+            'validation_accuracy': metrics['accuracy'],
+            'validation_precision': metrics['precision'],
+            'validation_recall': metrics['recall'],
+            'validation_specificity': metrics['specificity'],
+            'validation_f1': metrics['f1_score'],
+            'validation_mcc': metrics['mcc'],
             'cv_mean': cv_scores.mean(),
             'cv_std': cv_scores.std(),
             'model': model
         }
         
-        print(f"Validation Accuracy: {val_accuracy:.4f}")
-        print(f"Validation F1-Score: {val_f1:.4f}")
-        print(f"CV Accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+        print(f"Validation Results:")
+        print(f"  Accuracy:    {metrics['accuracy']:.4f}")
+        print(f"  Precision:   {metrics['precision']:.4f}")
+        print(f"  Recall:      {metrics['recall']:.4f}")
+        print(f"  Specificity: {metrics['specificity']:.4f}")
+        print(f"  F1-Score:    {metrics['f1_score']:.4f}")
+        print(f"  MCC:         {metrics['mcc']:.4f}")
+        print(f"  CV Accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
     
-    # Save model performance results
+    # Create confusion matrices visualization
+    create_confusion_matrices_visualization(results, X_val, y_val, class_labels)
+    
+    # Save comprehensive model performance results
     performance_data = []
     for name, result in results.items():
         performance_data.append({
             'model': name,
             'validation_accuracy': result['validation_accuracy'],
+            'validation_precision': result['validation_precision'],
+            'validation_recall': result['validation_recall'],
+            'validation_specificity': result['validation_specificity'],
             'validation_f1': result['validation_f1'],
+            'validation_mcc': result['validation_mcc'],
             'cv_mean': result['cv_mean'],
             'cv_std': result['cv_std']
         })
@@ -1494,15 +1650,26 @@ def train_multiple_models(X_train, X_val, y_train, y_val):
     performance_df.to_csv(performance_file, index=False)
     print(f"\n✅ Model performance results saved to: {performance_file}")
     
+    # Print summary table
+    print(f"\n" + "="*80)
+    print("MODEL PERFORMANCE SUMMARY")
+    print("="*80)
+    print(f"{'Model':<20} {'Accuracy':<10} {'Precision':<10} {'Recall':<10} {'Specificity':<12} {'F1-Score':<10} {'MCC':<10}")
+    print("-" * 80)
+    for name, result in results.items():
+        print(f"{name:<20} {result['validation_accuracy']:<10.4f} {result['validation_precision']:<10.4f} "
+              f"{result['validation_recall']:<10.4f} {result['validation_specificity']:<12.4f} "
+              f"{result['validation_f1']:<10.4f} {result['validation_mcc']:<10.4f}")
+    
     return results, trained_models
 
 def hyperparameter_tuning(X_train, y_train):
-    """Perform hyperparameter tuning for best models"""
+    """Perform hyperparameter tuning for selected models"""
     print("\n" + "="*50)
     print("HYPERPARAMETER TUNING")
     print("="*50)
     
-    # Parameter grids for top models
+    # Parameter grids for selected models
     param_grids = {
         'Random Forest': {
             'n_estimators': [50, 100, 200],
@@ -1514,10 +1681,15 @@ def hyperparameter_tuning(X_train, y_train):
             'gamma': ['scale', 'auto'],
             'kernel': ['rbf', 'linear']
         },
-        'Gradient Boosting': {
-            'n_estimators': [50, 100, 200],
-            'learning_rate': [0.01, 0.1, 0.2],
-            'max_depth': [3, 5, 7]
+        'K-Nearest Neighbors': {
+            'n_neighbors': [3, 5, 7, 9],
+            'weights': ['uniform', 'distance'],
+            'metric': ['euclidean', 'manhattan']
+        },
+        'Neural Network': {
+            'hidden_layer_sizes': [(50,), (100,), (50, 50), (100, 50)],
+            'alpha': [0.0001, 0.001, 0.01],
+            'learning_rate': ['constant', 'adaptive']
         }
     }
     
@@ -1530,8 +1702,10 @@ def hyperparameter_tuning(X_train, y_train):
             base_model = RandomForestClassifier(random_state=42)
         elif model_name == 'Support Vector Machine':
             base_model = SVC(random_state=42, probability=True)
-        elif model_name == 'Gradient Boosting':
-            base_model = GradientBoostingClassifier(random_state=42)
+        elif model_name == 'K-Nearest Neighbors':
+            base_model = KNeighborsClassifier()
+        elif model_name == 'Neural Network':
+            base_model = MLPClassifier(random_state=42, max_iter=1000)
         
         grid_search = GridSearchCV(
             base_model, param_grid, cv=3, scoring='accuracy', n_jobs=-1
@@ -1546,6 +1720,19 @@ def hyperparameter_tuning(X_train, y_train):
         
         print(f"Best parameters: {grid_search.best_params_}")
         print(f"Best CV score: {grid_search.best_score_:.4f}")
+    
+    # Note: Naive Bayes doesn't need hyperparameter tuning, so we'll add it with default parameters
+    print(f"\nAdding Naive Bayes with default parameters...")
+    nb_model = GaussianNB()
+    nb_scores = cross_val_score(nb_model, X_train, y_train, cv=3, scoring='accuracy')
+    nb_model.fit(X_train, y_train)
+    
+    tuned_models['Naive Bayes'] = {
+        'model': nb_model,
+        'best_params': 'Default parameters (no tuning needed)',
+        'best_score': nb_scores.mean()
+    }
+    print(f"Naive Bayes CV score: {nb_scores.mean():.4f}")
     
     # Save hyperparameter tuning results
     tuning_data = []
@@ -1648,7 +1835,7 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids):
             })
     
     predictions_df = pd.DataFrame(all_predictions_data)
-    predictions_file = os.path.join(DATA_DIR, f"all_predictions_{timestamp}.csv")
+    predictions_file = os.path.join(DATA_DIR, "all_predictions.csv")
     predictions_df.to_csv(predictions_file, index=False)
     print(f"\n✅ All predictions saved to: {predictions_file}")
     
@@ -1680,7 +1867,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
                     f'{conf:.3f}', ha='center', va='bottom')
     
     plt.tight_layout()
-    confidence_plot_file = os.path.join(PLOTS_DIR, f"08_model_confidence_{timestamp}.png")
+    confidence_plot_file = os.path.join(PLOTS_DIR, "09_model_confidence.png")
     plt.savefig(confidence_plot_file, dpi=300, bbox_inches='tight')
     print(f"✅ Model confidence plot saved to: {confidence_plot_file}")
     plt.close()
@@ -1692,7 +1879,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
         pred_counts = np.unique(results['predictions'], return_counts=True)
         all_model_predictions[name] = dict(zip(pred_counts[0], pred_counts[1]))
     
-    training_classes = ['WF', 'Ad', 'UF']
+    training_classes = ['WFB', 'ADB', 'UFB']
     x_pos = np.arange(len(model_names))
     bottom = np.zeros(len(model_names))
     
@@ -1709,7 +1896,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
     plt.legend()
     plt.tight_layout()
     
-    pred_dist_file = os.path.join(PLOTS_DIR, f"09_prediction_distribution_{timestamp}.png")
+    pred_dist_file = os.path.join(PLOTS_DIR, "10_prediction_distribution.png")
     plt.savefig(pred_dist_file, dpi=300, bbox_inches='tight')
     print(f"✅ Prediction distribution plot saved to: {pred_dist_file}")
     plt.close()
@@ -1738,7 +1925,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
             plt.text(i + 1, v + 0.1, str(v), ha='center', va='bottom')
     
     plt.tight_layout()
-    agreement_file = os.path.join(PLOTS_DIR, f"10_model_agreement_{timestamp}.png")
+    agreement_file = os.path.join(PLOTS_DIR, "11_model_agreement.png")
     plt.savefig(agreement_file, dpi=300, bbox_inches='tight')
     print(f"✅ Model agreement plot saved to: {agreement_file}")
     plt.close()
@@ -1746,7 +1933,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
     # 4. Individual sample predictions heatmap
     plt.figure(figsize=(14, 8))
     prediction_matrix = np.zeros((len(test_sample_ids), len(model_names)))
-    class_to_num = {'WF': 0, 'Ad': 1, 'UF': 2}
+    class_to_num = {'WFB': 0, 'ADB': 1, 'UFB': 2}
     
     for j, model_name in enumerate(model_names):
         for i, pred in enumerate(all_predictions[model_name]['predictions']):
@@ -1756,14 +1943,14 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
                 xticklabels=[name.replace(' (Tuned)', '(T)') for name in model_names],
                 yticklabels=test_sample_ids,
                 cmap='viridis', 
-                cbar_kws={'label': 'Predicted Class (0=WF, 1=Ad, 2=UF)'},
+                cbar_kws={'label': 'Predicted Class (0=WFB, 1=ADB, 2=UFB)'},
                 annot=True, fmt='.0f')
     plt.title('Prediction Heatmap', fontsize=14)
     plt.xlabel('Models', fontsize=12)
     plt.ylabel('Samples', fontsize=12)
     plt.tight_layout()
     
-    heatmap_file = os.path.join(PLOTS_DIR, f"11_prediction_heatmap_{timestamp}.png")
+    heatmap_file = os.path.join(PLOTS_DIR, "12_prediction_heatmap.png")
     plt.savefig(heatmap_file, dpi=300, bbox_inches='tight')
     print(f"✅ Prediction heatmap saved to: {heatmap_file}")
     plt.close()
@@ -1795,7 +1982,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
             plt.title(f'{model_name} - No Probabilities Available', fontsize=14)
         
         plt.tight_layout()
-        conf_dist_file = os.path.join(PLOTS_DIR, f"12_confidence_dist_{idx+1}_{model_name.replace(' ', '_')}_{timestamp}.png")
+        conf_dist_file = os.path.join(PLOTS_DIR, f"13_confidence_dist_{idx+1}_{model_name.replace(' ', '_')}.png")
         plt.savefig(conf_dist_file, dpi=300, bbox_inches='tight')
         print(f"✅ Confidence distribution plot saved to: {conf_dist_file}")
         plt.close()
@@ -1824,7 +2011,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
                 fontsize=16)
     
     plt.tight_layout()
-    sample_conf_file = os.path.join(PLOTS_DIR, f"13_per_sample_confidence_{timestamp}.png")
+    sample_conf_file = os.path.join(PLOTS_DIR, "14_per_sample_confidence.png")
     plt.savefig(sample_conf_file, dpi=300, bbox_inches='tight')
     print(f"✅ Per-sample confidence plot saved to: {sample_conf_file}")
     plt.close()
@@ -1852,7 +2039,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
     
     # Create stacked bar chart
     x_pos = np.arange(len(test_sample_ids))
-    colors_consensus = {'WF': 'red', 'Ad': 'blue', 'UF': 'green'}
+    colors_consensus = {'WFB': 'red', 'ADB': 'blue', 'UFB': 'green'}
     
     for i, (sample_id, pred, agreement) in enumerate(zip(test_sample_ids, consensus_predictions, agreement_levels)):
         color = colors_consensus.get(pred, 'gray')
@@ -1872,7 +2059,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
     plt.legend()
     
     plt.tight_layout()
-    consensus_file = os.path.join(PLOTS_DIR, f"14_consensus_predictions_{timestamp}.png")
+    consensus_file = os.path.join(PLOTS_DIR, "15_consensus_predictions.png")
     plt.savefig(consensus_file, dpi=300, bbox_inches='tight')
     print(f"✅ Consensus predictions plot saved to: {consensus_file}")
     plt.close()
@@ -1919,7 +2106,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
     
     # Save consensus predictions
     consensus_df = pd.DataFrame(consensus_data)
-    consensus_file = os.path.join(DATA_DIR, f"consensus_predictions_{timestamp}.csv")
+    consensus_file = os.path.join(DATA_DIR, "consensus_predictions.csv")
     consensus_df.to_csv(consensus_file, index=False)
     print(f"\n✅ Consensus predictions saved to: {consensus_file}")
     
@@ -2015,10 +2202,11 @@ def main():
             print(f"{i+1}. {feature}: Average rank {avg_rank:.1f} across all methods")
         
         print(f"\nDATASET CHARACTERISTICS:")
-        print(f"- Training samples: {len(train_data)} (WF: 40, Ad: 60, UF: 30)")
+        print(f"- Training samples: {len(train_data)} (WFB: 40, ADB: 60, UFB: 30)")
         print(f"- Unclassified cocoa bean samples: {len(test_data)} (X1-X10)")
         print(f"- Sensor channels: {len(feature_cols)} (ch0-ch13)")
         print(f"- Training classes: {', '.join(train_data['class'].unique())}")
+        print(f"- Models analyzed: Random Forest, SVM, KNN, Neural Network, Naive Bayes")
         
         # Create final prediction table
         print(f"\n" + "="*60)
@@ -2035,13 +2223,16 @@ def main():
         print(results_df.to_string(index=False))
         
         # Save final results to CSV
-        final_results_file = os.path.join(DATA_DIR, f"final_classification_results_{timestamp}.csv")
+        final_results_file = os.path.join(DATA_DIR, "final_classification_results.csv")
         results_df.to_csv(final_results_file, index=False)
         print(f"\n✅ Final classification results saved to: {final_results_file}")
         
         print(f"\n" + "="*60)
         print("INTERPRETATION:")
-        print("- WF, Ad, UF likely represent different types/qualities of cocoa beans")
+        print("- WFB, ADB, UFB likely represent different types/qualities of cocoa beans")
+        print("  * WFB: Well-Fermented Beans")
+        print("  * ADB: Adequately-Fermented Beans") 
+        print("  * UFB: Under-Fermented Beans")
         print("- X1-X10 are unclassified cocoa bean samples")
         print("- The model predicts which known category each sample belongs to")
         print("- Higher confidence scores indicate more reliable predictions")
@@ -2070,13 +2261,14 @@ def main():
         print(f"📝 Log files saved in: {LOGS_DIR}")
         print(f"📄 Summary report: ANALYSIS_SUMMARY_REPORT_{timestamp}.txt")
         print("="*60)
-        print("\n🎉 Comprehensive analysis complete with correlation & confusion analysis!")
-        print("   • 25 individual plots covering all aspects including class correlations")
-        print("   • 15 CSV files with detailed results and class similarity metrics")
-        print("   • Feature importance analyzed across ALL models and methods")
-        print("   • Class profile correlation and confusion matrix analysis")
-        print("   • Test sample similarity to training classes analysis")
-        print("   • Comprehensive data quality and influence factor analysis")
+        print("\n🎉 Comprehensive analysis complete with confusion matrices!")
+        print("   • Focus on 5 ML models: Random Forest, SVM, KNN, Neural Network, Naive Bayes")
+        print("   • Comprehensive evaluation: Accuracy, Precision, Recall, Specificity, F1-Score, MCC")
+        print("   • Confusion matrices visualization similar to research papers")
+        print("   • Updated class labels: WFB (Well-Fermented), ADB (Adequately-Fermented), UFB (Under-Fermented)")
+        print("   • Enhanced hyperparameter tuning for better model performance")
+        print("   • Individual plots covering all aspects including class correlations")
+        print("   • 15 CSV files with detailed results and comprehensive metrics")
         print("   Each file can be used separately in presentations or publications.")
         
     except Exception as e:
@@ -2106,11 +2298,12 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
         f.write("DATASET OVERVIEW:\n")
         f.write("-"*40 + "\n")
         f.write(f"Training Samples: {len(train_data)}\n")
-        f.write(f"  - WF: {len(train_data[train_data['class'] == 'WF'])}\n")
-        f.write(f"  - Ad: {len(train_data[train_data['class'] == 'Ad'])}\n")
-        f.write(f"  - UF: {len(train_data[train_data['class'] == 'UF'])}\n")
+        f.write(f"  - WFB: {len(train_data[train_data['class'] == 'WFB'])}\n")
+        f.write(f"  - ADB: {len(train_data[train_data['class'] == 'ADB'])}\n")
+        f.write(f"  - UFB: {len(train_data[train_data['class'] == 'UFB'])}\n")
         f.write(f"Unclassified Samples: {len(test_data)} (X1-X10)\n")
-        f.write(f"Features: {len(feature_cols)} sensor channels (ch0-ch13)\n\n")
+        f.write(f"Features: {len(feature_cols)} sensor channels (ch0-ch13)\n")
+        f.write(f"Models Analyzed: Random Forest, SVM, KNN, Neural Network, Naive Bayes\n\n")
         
         # Data Quality Assessment
         f.write("DATA QUALITY ASSESSMENT:\n")
@@ -2225,23 +2418,23 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
         f.write(f"  25. Test Sample Similarities\n\n")
         
         f.write("Data Files (CSV):\n")
-        f.write(f"  - final_classification_results_{timestamp}.csv\n")
-        f.write(f"  - comprehensive_feature_importance_{timestamp}.csv\n")
-        f.write(f"  - detailed_statistical_analysis_{timestamp}.csv\n")
-        f.write(f"  - class_separability_{timestamp}.csv\n")
-        f.write(f"  - domain_shift_analysis_{timestamp}.csv\n")
-        f.write(f"  - data_quality_metrics_{timestamp}.csv\n")
-        f.write(f"  - target_correlation_analysis_{timestamp}.csv\n")
-        f.write(f"  - all_predictions_{timestamp}.csv\n")
-        f.write(f"  - consensus_predictions_{timestamp}.csv\n")
-        f.write(f"  - model_performance_{timestamp}.csv\n")
-        f.write(f"  - hyperparameter_tuning_{timestamp}.csv\n")
-        f.write(f"  - detailed_class_profiles_{timestamp}.csv\n")
-        f.write(f"  - sensor_discrimination_analysis_{timestamp}.csv\n")
-        f.write(f"  - test_sample_class_similarities_{timestamp}.csv\n\n")
+        f.write(f"  - final_classification_results.csv\n")
+        f.write(f"  - comprehensive_feature_importance.csv\n")
+        f.write(f"  - detailed_statistical_analysis.csv\n")
+        f.write(f"  - class_separability.csv\n")
+        f.write(f"  - domain_shift_analysis.csv\n")
+        f.write(f"  - data_quality_metrics.csv\n")
+        f.write(f"  - target_correlation_analysis.csv\n")
+        f.write(f"  - all_predictions.csv\n")
+        f.write(f"  - consensus_predictions.csv\n")
+        f.write(f"  - model_performance.csv\n")
+        f.write(f"  - hyperparameter_tuning.csv\n")
+        f.write(f"  - detailed_class_profiles.csv\n")
+        f.write(f"  - sensor_discrimination_analysis.csv\n")
+        f.write(f"  - test_sample_class_similarities.csv\n\n")
         
         f.write("Log Files:\n")
-        f.write(f"  - analysis_log_{timestamp}.txt\n\n")
+        f.write(f"  - analysis_log.txt\n\n")
         
         # Key Insights and Recommendations
         f.write("KEY INSIGHTS & RECOMMENDATIONS:\n")

@@ -1,18 +1,19 @@
 ================================================================================
 E-NOSE COCOA BEAN CLASSIFICATION - COMPREHENSIVE ANALYSIS REPORT
 ================================================================================
-Analysis Date: 2025-08-15 08:58:04
-Timestamp: 20250815_085626
+Analysis Date: 2025-08-19 16:06:53
+Timestamp: 20250819_160315
 ================================================================================
 
 DATASET OVERVIEW:
 ----------------------------------------
 Training Samples: 130
-  - WF: 40
-  - Ad: 60
-  - UF: 30
+  - WFB: 40
+  - ADB: 60
+  - UFB: 30
 Unclassified Samples: 10 (X1-X10)
 Features: 14 sensor channels (ch0-ch13)
+Models Analyzed: Random Forest, SVM, KNN, Neural Network, Naive Bayes
 
 DATA QUALITY ASSESSMENT:
 ----------------------------------------
@@ -20,45 +21,45 @@ DATA QUALITY ASSESSMENT:
 
 BEST PERFORMING MODEL:
 ----------------------------------------
-Model: Decision Tree
-Average Confidence: 1.0
+Model: Naive Bayes
+Average Confidence: 0.9999999999999382
 
 FINAL CLASSIFICATION RESULTS:
 ----------------------------------------
-Sample_ID Predicted_Class  Confidence    Model_Used
-       X1              UF         1.0 Decision Tree
-       X2              UF         1.0 Decision Tree
-       X3              UF         1.0 Decision Tree
-       X4              UF         1.0 Decision Tree
-       X5              UF         1.0 Decision Tree
-       X6              WF         1.0 Decision Tree
-       X7              WF         1.0 Decision Tree
-       X8              WF         1.0 Decision Tree
-       X9              Ad         1.0 Decision Tree
-      X10              Ad         1.0 Decision Tree
+Sample_ID Predicted_Class  Confidence  Model_Used
+       X1             UFB         1.0 Naive Bayes
+       X2             UFB         1.0 Naive Bayes
+       X3             UFB         1.0 Naive Bayes
+       X4             UFB         1.0 Naive Bayes
+       X5             UFB         1.0 Naive Bayes
+       X6             WFB         1.0 Naive Bayes
+       X7             WFB         1.0 Naive Bayes
+       X8             WFB         1.0 Naive Bayes
+       X9             ADB         1.0 Naive Bayes
+      X10             ADB         1.0 Naive Bayes
 
 PREDICTION DISTRIBUTION:
 ----------------------------------------
-Ad: 2/10 samples (20.0%)
-UF: 5/10 samples (50.0%)
-WF: 3/10 samples (30.0%)
+ADB: 2/10 samples (20.0%)
+UFB: 5/10 samples (50.0%)
+WFB: 3/10 samples (30.0%)
 
 TOP 10 MOST CONSISTENTLY IMPORTANT FEATURES:
 ----------------------------------------
- 1. ch0: Average rank 3.5
- 2. ch6: Average rank 4.5
- 3. ch12: Average rank 4.8
- 4. ch11: Average rank 5.0
- 5. ch3: Average rank 6.4
+ 1. ch0: Average rank 2.8
+ 2. ch11: Average rank 4.2
+ 3. ch6: Average rank 4.9
+ 4. ch3: Average rank 4.9
+ 5. ch12: Average rank 6.3
 
 FEATURE IMPORTANCE CONSENSUS:
 ----------------------------------------
 Top 5 features by consensus (Borda count):
-1. ch0: 11.46
-2. ch6: 10.50
-3. ch12: 10.21
-4. ch11: 9.96
-5. ch9: 8.61
+1. ch0: 12.15
+2. ch11: 10.77
+3. ch6: 10.08
+4. ch3: 10.08
+5. ch12: 8.69
 
 STATISTICAL SIGNIFICANCE SUMMARY:
 ----------------------------------------
@@ -84,23 +85,23 @@ Individual Plots (High Resolution PNG):
   25. Test Sample Similarities
 
 Data Files (CSV):
-  - final_classification_results_20250815_085626.csv
-  - comprehensive_feature_importance_20250815_085626.csv
-  - detailed_statistical_analysis_20250815_085626.csv
-  - class_separability_20250815_085626.csv
-  - domain_shift_analysis_20250815_085626.csv
-  - data_quality_metrics_20250815_085626.csv
-  - target_correlation_analysis_20250815_085626.csv
-  - all_predictions_20250815_085626.csv
-  - consensus_predictions_20250815_085626.csv
-  - model_performance_20250815_085626.csv
-  - hyperparameter_tuning_20250815_085626.csv
-  - detailed_class_profiles_20250815_085626.csv
-  - sensor_discrimination_analysis_20250815_085626.csv
-  - test_sample_class_similarities_20250815_085626.csv
+  - final_classification_results.csv
+  - comprehensive_feature_importance.csv
+  - detailed_statistical_analysis.csv
+  - class_separability.csv
+  - domain_shift_analysis.csv
+  - data_quality_metrics.csv
+  - target_correlation_analysis.csv
+  - all_predictions.csv
+  - consensus_predictions.csv
+  - model_performance.csv
+  - hyperparameter_tuning.csv
+  - detailed_class_profiles.csv
+  - sensor_discrimination_analysis.csv
+  - test_sample_class_similarities.csv
 
 Log Files:
-  - analysis_log_20250815_085626.txt
+  - analysis_log.txt
 
 KEY INSIGHTS & RECOMMENDATIONS:
 ----------------------------------------
@@ -108,7 +109,7 @@ KEY INSIGHTS & RECOMMENDATIONS:
    ✅ No significant domain shift detected between train/test
 
 2. FEATURE IMPORTANCE:
-   🎯 Most critical sensors: ch0, ch6, ch12
+   🎯 Most critical sensors: ch0, ch11, ch6
    → Focus on these sensors for future data collection
    → Consider sensor maintenance and calibration priorities
 
