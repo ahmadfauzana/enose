@@ -16,6 +16,10 @@ from sklearn.inspection import permutation_importance
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from scipy import stats
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import TensorDataset, DataLoader
 import warnings
 import os
 import sys
@@ -26,6 +30,63 @@ warnings.filterwarnings('ignore')
 plt.style.use('seaborn-v0_8')
 sns.set_palette("husl")
 
+class DeepMLP(nn.Module):
+    def __init__(self, input_dim, num_classes):
+        super().__init__()
+        self.fc1 = nn.Linear(input_dim, 128)
+        self.bn1 = nn.BatchNorm1d(128)
+        self.fc2 = nn.Linear(128, 64)
+        self.bn2 = nn.BatchNorm1d(64)
+        self.dropout = nn.Dropout(0.3)
+        self.fc3 = nn.Linear(64, num_classes)
+
+    def forward(self, x):
+        x = torch.relu(self.bn1(self.fc1(x)))
+        x = torch.relu(self.bn2(self.fc2(x)))
+        x = self.dropout(x)
+        return self.fc3(x)
+
+
+class Conv1DNet(nn.Module):
+    def __init__(self, input_dim, num_classes):
+        super().__init__()
+        self.conv1 = nn.Conv1d(1, 32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv1d(32, 64, kernel_size=3, padding=1)
+        self.fc1 = nn.Linear(64 * input_dim, 128)
+        self.fc2 = nn.Linear(128, num_classes)
+
+    def forward(self, x):
+        x = x.unsqueeze(1)  # (B,1,14)
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        return self.fc2(x)
+
+class LSTMNet(nn.Module):
+    def __init__(self, input_dim, num_classes, hidden_size=64):
+        super().__init__()
+        self.lstm = nn.LSTM(input_dim, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+
+    def forward(self, x):
+        # Treat each feature as "time-step=1" sequence
+        x = x.unsqueeze(1)  # (B,1,14)
+        out, (h, c) = self.lstm(x)
+        return self.fc(h[-1])
+
+def compute_feature_importances(model, X_val, y_val):
+    """Compute feature importances if supported"""
+    if isinstance(model, nn.Module):
+        print("⚠️ Skipping feature importance: PyTorch model not compatible with permutation_importance")
+        return None
+    try:
+        result = permutation_importance(model, X_val, y_val, n_repeats=10, random_state=42, n_jobs=-1)
+        return result.importances_mean
+    except Exception as e:
+        print(f"❌ Error computing feature importance: {e}")
+        return None
+    
 def create_run_directory():
     """Create a new numbered directory for this analysis run"""
     base_name = "enose_run"
@@ -727,13 +788,7 @@ def comprehensive_feature_importance_analysis(models, tuned_models, X_train, y_t
         else:
             # Use permutation importance for other models
             print(f"  Computing permutation importance for {model_name}...")
-            perm_importance = permutation_importance(
-                model, X_train, y_train, 
-                n_repeats=10, 
-                random_state=42, 
-                scoring='accuracy'
-            )
-            importance_scores = perm_importance.importances_mean
+            importance_scores = compute_feature_importances(model, X_train, y_train)
             method = "Permutation"
         
         all_importance_scores[model_name] = {
@@ -782,187 +837,200 @@ def comprehensive_feature_importance_analysis(models, tuned_models, X_train, y_t
     # 3. Create comprehensive visualization
     print("\n3. CREATING FEATURE IMPORTANCE VISUALIZATIONS")
     print("-" * 40)
-    
-    # Normalize all scores to 0-1 range for comparison
-    normalized_scores = {}
-    for method_name, score_info in all_importance_scores.items():
-        scores = score_info['scores']
-        if scores.max() > scores.min():
-            normalized = (scores - scores.min()) / (scores.max() - scores.min())
-        else:
-            normalized = scores
-        normalized_scores[method_name] = normalized
-    
-    # Create heatmap of all feature importance
-    plt.figure(figsize=(16, 12))
-    
-    importance_matrix = np.array([normalized_scores[method] for method in normalized_scores.keys()])
-    
-    sns.heatmap(importance_matrix,
-                xticklabels=feature_cols,
-                yticklabels=list(normalized_scores.keys()),
-                annot=True,
-                fmt='.3f',
-                cmap='YlOrRd',
-                cbar_kws={'label': 'Normalized Importance Score'})
-    
-    plt.title('Feature Importance Across All Models and Methods', fontsize=14)
-    plt.xlabel('Features', fontsize=12)
-    plt.ylabel('Models/Methods', fontsize=12)
-    plt.xticks(rotation=45)
-    plt.yticks(rotation=0)
-    plt.tight_layout()
-    
-    importance_heatmap_file = os.path.join(PLOTS_DIR, "18_feature_importance_heatmap.png")
-    plt.savefig(importance_heatmap_file, dpi=300, bbox_inches='tight')
-    print(f"✅ Feature importance heatmap saved to: {importance_heatmap_file}")
-    plt.close()
-    
-    # 4. Individual model importance plots
-    n_models = len(all_importance_scores)
-    n_cols = 3
-    n_rows = (n_models + n_cols - 1) // n_cols
-    
-    plt.figure(figsize=(18, 6 * n_rows))
-    
-    for i, (method_name, score_info) in enumerate(all_importance_scores.items()):
-        plt.subplot(n_rows, n_cols, i + 1)
-        
-        scores = score_info['scores']
-        colors = plt.cm.viridis(np.linspace(0, 1, len(feature_cols)))
-        
-        bars = plt.bar(feature_cols, scores, color=colors, alpha=0.7)
-        plt.title(f'{method_name}\n({score_info["method"]} Method)', fontsize=11)
-        plt.xlabel('Features')
-        plt.ylabel('Importance Score')
+
+    # --- Filter out invalid scores (None for DL models) ---
+    valid_importance_scores = {
+        method_name: score_info
+        for method_name, score_info in all_importance_scores.items()
+        if score_info['scores'] is not None
+    }
+
+    if not valid_importance_scores:
+        print("⚠️ No valid feature importance scores to visualize.")
+    else:
+        # Normalize all scores to 0-1 range for comparison
+        normalized_scores = {}
+        for method_name, score_info in valid_importance_scores.items():
+            scores = score_info['scores']
+            if scores.max() > scores.min():
+                normalized = (scores - scores.min()) / (scores.max() - scores.min())
+            else:
+                normalized = scores
+            normalized_scores[method_name] = normalized
+
+        # --- Heatmap of all feature importance ---
+        plt.figure(figsize=(16, 12))
+        importance_matrix = np.array([normalized_scores[method] for method in normalized_scores.keys()])
+        sns.heatmap(importance_matrix,
+                    xticklabels=feature_cols,
+                    yticklabels=list(normalized_scores.keys()),
+                    annot=True,
+                    fmt='.3f',
+                    cmap='YlOrRd',
+                    cbar_kws={'label': 'Normalized Importance Score'})
+        plt.title('Feature Importance Across All Models and Methods', fontsize=14)
+        plt.xlabel('Features', fontsize=12)
+        plt.ylabel('Models/Methods', fontsize=12)
         plt.xticks(rotation=45)
-        plt.grid(True, alpha=0.3)
-        
-        # Add values on top of bars for top 3 features
-        top_3_indices = np.argsort(scores)[-3:]
-        for idx in top_3_indices:
-            plt.text(idx, scores[idx] + scores.max()*0.01, 
-                    f'{scores[idx]:.3f}', 
-                    ha='center', va='bottom', fontsize=8)
-    
-    plt.tight_layout()
-    individual_importance_file = os.path.join(PLOTS_DIR, "19_individual_feature_importance.png")
-    plt.savefig(individual_importance_file, dpi=300, bbox_inches='tight')
-    print(f"✅ Individual feature importance plots saved to: {individual_importance_file}")
-    plt.close()
-    
-    # 5. Feature importance ranking comparison
-    plt.figure(figsize=(16, 10))
-    
-    # Calculate average ranking across all methods
-    rankings = {}
-    for method_name, score_info in all_importance_scores.items():
-        scores = score_info['scores']
-        ranking = stats.rankdata(-scores)  # Negative for descending order
-        rankings[method_name] = ranking
-    
-    ranking_matrix = np.array([rankings[method] for method in rankings.keys()])
-    avg_ranking = np.mean(ranking_matrix, axis=0)
-    
-    # Sort features by average ranking
-    sorted_indices = np.argsort(avg_ranking)
-    sorted_features = [feature_cols[i] for i in sorted_indices]
-    sorted_rankings = ranking_matrix[:, sorted_indices]
-    
-    sns.heatmap(sorted_rankings,
-                xticklabels=sorted_features,
-                yticklabels=list(rankings.keys()),
-                annot=True,
-                fmt='.0f',
-                cmap='RdYlBu_r',
-                cbar_kws={'label': 'Ranking (1 = Most Important)'})
-    
-    plt.title('Feature Importance Rankings Across All Methods', fontsize=14)
-    plt.xlabel('Features (Sorted by Average Ranking)', fontsize=12)
-    plt.ylabel('Models/Methods', fontsize=12)
-    plt.xticks(rotation=45)
-    plt.yticks(rotation=0)
-    plt.tight_layout()
-    
-    ranking_heatmap_file = os.path.join(PLOTS_DIR, "20_feature_ranking_comparison.png")
-    plt.savefig(ranking_heatmap_file, dpi=300, bbox_inches='tight')
-    print(f"✅ Feature ranking comparison saved to: {ranking_heatmap_file}")
-    plt.close()
+        plt.yticks(rotation=0)
+        plt.tight_layout()
+        importance_heatmap_file = os.path.join(PLOTS_DIR, "18_feature_importance_heatmap.png")
+        plt.savefig(importance_heatmap_file, dpi=300, bbox_inches='tight')
+        print(f"✅ Feature importance heatmap saved to: {importance_heatmap_file}")
+        plt.close()
+
+        # --- Individual model importance plots ---
+        n_models = len(valid_importance_scores)
+        n_cols = 3
+        n_rows = (n_models + n_cols - 1) // n_cols
+        plt.figure(figsize=(18, 6 * n_rows))
+        for i, (method_name, score_info) in enumerate(valid_importance_scores.items()):
+            plt.subplot(n_rows, n_cols, i + 1)
+            scores = score_info['scores']
+            colors = plt.cm.viridis(np.linspace(0, 1, len(feature_cols)))
+            bars = plt.bar(feature_cols, scores, color=colors, alpha=0.7)
+            plt.title(f'{method_name}\n({score_info["method"]} Method)', fontsize=11)
+            plt.xlabel('Features')
+            plt.ylabel('Importance Score')
+            plt.xticks(rotation=45)
+            plt.grid(True, alpha=0.3)
+            # Annotate top 3
+            top_3_indices = np.argsort(scores)[-3:]
+            for idx in top_3_indices:
+                plt.text(idx, scores[idx] + scores.max()*0.01,
+                        f'{scores[idx]:.3f}',
+                        ha='center', va='bottom', fontsize=8)
+        plt.tight_layout()
+        individual_importance_file = os.path.join(PLOTS_DIR, "19_individual_feature_importance.png")
+        plt.savefig(individual_importance_file, dpi=300, bbox_inches='tight')
+        print(f"✅ Individual feature importance plots saved to: {individual_importance_file}")
+        plt.close()
+
+        # --- Feature importance ranking comparison ---
+        plt.figure(figsize=(16, 10))
+        rankings = {}
+        for method_name, score_info in valid_importance_scores.items():
+            scores = score_info['scores']
+            ranking = stats.rankdata(-scores)  # Negative for descending order
+            rankings[method_name] = ranking
+        ranking_matrix = np.array([rankings[method] for method in rankings.keys()])
+        avg_ranking = np.mean(ranking_matrix, axis=0)
+        sorted_indices = np.argsort(avg_ranking)
+        sorted_features = [feature_cols[i] for i in sorted_indices]
+        sorted_rankings = ranking_matrix[:, sorted_indices]
+        sns.heatmap(sorted_rankings,
+                    xticklabels=sorted_features,
+                    yticklabels=list(rankings.keys()),
+                    annot=True,
+                    fmt='.0f',
+                    cmap='RdYlBu_r',
+                    cbar_kws={'label': 'Ranking (1 = Most Important)'})
+        plt.title('Feature Importance Rankings Across All Methods', fontsize=14)
+        plt.xlabel('Features (Sorted by Average Ranking)', fontsize=12)
+        plt.ylabel('Models/Methods', fontsize=12)
+        plt.xticks(rotation=45)
+        plt.yticks(rotation=0)
+        plt.tight_layout()
+        ranking_heatmap_file = os.path.join(PLOTS_DIR, "20_feature_ranking_comparison.png")
+        plt.savefig(ranking_heatmap_file, dpi=300, bbox_inches='tight')
+        print(f"✅ Feature ranking comparison saved to: {ranking_heatmap_file}")
+        plt.close()
+
     
     # 6. Consensus feature importance
     print("\n4. CONSENSUS FEATURE IMPORTANCE ANALYSIS")
     print("-" * 40)
-    
-    # Calculate consensus scores using different methods
-    consensus_scores = {
-        'mean_normalized': np.mean(importance_matrix, axis=0),
-        'median_normalized': np.median(importance_matrix, axis=0),
-        'mean_ranking': np.mean(ranking_matrix, axis=0),
-        'borda_count': len(feature_cols) + 1 - np.mean(ranking_matrix, axis=0)  # Borda count
+
+    # --- Filter valid scores only ---
+    valid_importance_scores = {
+        method_name: score_info
+        for method_name, score_info in all_importance_scores.items()
+        if score_info['scores'] is not None
     }
-    
-    plt.figure(figsize=(16, 10))
-    
-    for i, (consensus_name, scores) in enumerate(consensus_scores.items()):
-        plt.subplot(2, 2, i + 1)
-        
-        # Sort features by consensus score
-        sorted_indices = np.argsort(scores)[::-1]
-        sorted_features = [feature_cols[j] for j in sorted_indices]
-        sorted_scores = scores[sorted_indices]
-        
-        bars = plt.bar(range(len(sorted_features)), sorted_scores, 
-                      color=plt.cm.plasma(np.linspace(0, 1, len(sorted_features))), 
-                      alpha=0.7)
-        
-        plt.title(f'Consensus Feature Importance\n({consensus_name.replace("_", " ").title()})')
-        plt.xlabel('Features (Ranked)')
-        plt.ylabel('Consensus Score')
-        plt.xticks(range(len(sorted_features)), sorted_features, rotation=45)
-        plt.grid(True, alpha=0.3)
-        
-        # Highlight top 5 features
-        for j in range(min(5, len(sorted_features))):
-            plt.text(j, sorted_scores[j] + sorted_scores.max()*0.01,
-                    f'{sorted_scores[j]:.3f}',
-                    ha='center', va='bottom', fontsize=8, fontweight='bold')
-    
-    plt.tight_layout()
-    consensus_importance_file = os.path.join(PLOTS_DIR, "21_consensus_feature_importance.png")
-    plt.savefig(consensus_importance_file, dpi=300, bbox_inches='tight')
-    print(f"✅ Consensus feature importance saved to: {consensus_importance_file}")
-    plt.close()
-    
-    # 7. Save all importance scores to CSV
-    importance_data = []
-    
-    for method_name, score_info in all_importance_scores.items():
-        for i, feature in enumerate(feature_cols):
-            importance_data.append({
-                'method': method_name,
-                'feature': feature,
-                'raw_score': score_info['scores'][i],
-                'normalized_score': normalized_scores[method_name][i],
-                'ranking': rankings[method_name][i],
-                'method_type': score_info['method']
-            })
-    
-    # Add consensus scores
-    for consensus_name, scores in consensus_scores.items():
-        for i, feature in enumerate(feature_cols):
-            importance_data.append({
-                'method': f'Consensus_{consensus_name}',
-                'feature': feature,
-                'raw_score': scores[i],
-                'normalized_score': scores[i],
-                'ranking': stats.rankdata(-scores)[i],
-                'method_type': 'Consensus'
-            })
-    
-    importance_df = pd.DataFrame(importance_data)
-    importance_file = os.path.join(DATA_DIR, "comprehensive_feature_importance.csv")
-    importance_df.to_csv(importance_file, index=False)
-    print(f"\n✅ Comprehensive feature importance saved to: {importance_file}")
+
+    if not valid_importance_scores:
+        print("⚠️ No valid feature importance scores for consensus analysis.")
+    else:
+        # Rebuild normalized_scores and rankings using only valid models
+        normalized_scores = {}
+        for method_name, score_info in valid_importance_scores.items():
+            scores = score_info['scores']
+            if scores.max() > scores.min():
+                normalized = (scores - scores.min()) / (scores.max() - scores.min())
+            else:
+                normalized = scores
+            normalized_scores[method_name] = normalized
+
+        rankings = {}
+        for method_name, score_info in valid_importance_scores.items():
+            scores = score_info['scores']
+            rankings[method_name] = stats.rankdata(-scores)
+
+        importance_matrix = np.array([normalized_scores[m] for m in normalized_scores.keys()])
+        ranking_matrix = np.array([rankings[m] for m in rankings.keys()])
+
+        # --- Consensus Scores ---
+        consensus_scores = {
+            'mean_normalized': np.mean(importance_matrix, axis=0),
+            'median_normalized': np.median(importance_matrix, axis=0),
+            'mean_ranking': np.mean(ranking_matrix, axis=0),
+            'borda_count': len(feature_cols) + 1 - np.mean(ranking_matrix, axis=0)
+        }
+
+        # --- Plot consensus ---
+        plt.figure(figsize=(16, 10))
+        for i, (consensus_name, scores) in enumerate(consensus_scores.items()):
+            plt.subplot(2, 2, i + 1)
+            sorted_indices = np.argsort(scores)[::-1]
+            sorted_features = [feature_cols[j] for j in sorted_indices]
+            sorted_scores = scores[sorted_indices]
+            bars = plt.bar(range(len(sorted_features)), sorted_scores,
+                        color=plt.cm.plasma(np.linspace(0, 1, len(sorted_features))),
+                        alpha=0.7)
+            plt.title(f'Consensus Feature Importance\n({consensus_name.replace("_", " ").title()})')
+            plt.xlabel('Features (Ranked)')
+            plt.ylabel('Consensus Score')
+            plt.xticks(range(len(sorted_features)), sorted_features, rotation=45)
+            plt.grid(True, alpha=0.3)
+            for j in range(min(5, len(sorted_features))):
+                plt.text(j, sorted_scores[j] + sorted_scores.max()*0.01,
+                        f'{sorted_scores[j]:.3f}',
+                        ha='center', va='bottom', fontsize=8, fontweight='bold')
+        plt.tight_layout()
+        consensus_importance_file = os.path.join(PLOTS_DIR, "21_consensus_feature_importance.png")
+        plt.savefig(consensus_importance_file, dpi=300, bbox_inches='tight')
+        print(f"✅ Consensus feature importance saved to: {consensus_importance_file}")
+        plt.close()
+
+        # --- Save all importance scores ---
+        importance_data = []
+        for method_name, score_info in valid_importance_scores.items():
+            for i, feature in enumerate(feature_cols):
+                importance_data.append({
+                    'method': method_name,
+                    'feature': feature,
+                    'raw_score': score_info['scores'][i],
+                    'normalized_score': normalized_scores[method_name][i],
+                    'ranking': rankings[method_name][i],
+                    'method_type': score_info['method']
+                })
+
+        # Add consensus scores
+        for consensus_name, scores in consensus_scores.items():
+            for i, feature in enumerate(feature_cols):
+                importance_data.append({
+                    'method': f'Consensus_{consensus_name}',
+                    'feature': feature,
+                    'raw_score': scores[i],
+                    'normalized_score': scores[i],
+                    'ranking': stats.rankdata(-scores)[i],
+                    'method_type': 'Consensus'
+                })
+
+        importance_df = pd.DataFrame(importance_data)
+        importance_file = os.path.join(DATA_DIR, "comprehensive_feature_importance.csv")
+        importance_df.to_csv(importance_file, index=False)
+        print(f"\n✅ Comprehensive feature importance saved to: {importance_file}")
     
     # 8. Summary of top features
     print("\n5. FEATURE IMPORTANCE SUMMARY")
@@ -1474,34 +1542,47 @@ def calculate_comprehensive_metrics(y_true, y_pred, class_labels):
         'mcc': mcc
     }
 
-def create_confusion_matrices_visualization(models, X_val, y_val, class_labels):
-    """Create confusion matrix visualizations for all models"""
+def create_confusion_matrices_visualization(models, X_val, y_val, class_labels, label_encoder=None):
+    """Create confusion matrix visualizations for all models (ML + Deep Learning)"""
     print("\n" + "="*50)
     print("CREATING CONFUSION MATRICES")
     print("="*50)
-    
+
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     axes = axes.flatten()
-    
+
     model_names = list(models.keys())
-    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     for idx, (model_name, model_info) in enumerate(models.items()):
-        if idx >= 6:  # We only have 6 subplots (2x3)
+        if idx >= 6:  # Limit to 6 plots
             break
-            
+
         model = model_info['model']
-        y_pred = model.predict(X_val)
-        
-        # Calculate confusion matrix
+
+        # ---- Prediction step ----
+        if isinstance(model, nn.Module):  # PyTorch model
+            model.eval()
+            X_val_tensor = torch.tensor(X_val, dtype=torch.float32).to(device)
+            with torch.no_grad():
+                outputs = model(X_val_tensor)
+                preds = torch.argmax(outputs, dim=1).cpu().numpy()
+
+            # If label encoder provided, convert back to original labels
+            if label_encoder is not None:
+                y_pred = label_encoder.inverse_transform(preds)
+            else:
+                y_pred = preds
+
+        else:  # Scikit-learn model
+            y_pred = model.predict(X_val)
+
+        # ---- Confusion Matrix ----
         cm = confusion_matrix(y_val, y_pred, labels=class_labels)
-        
-        # Calculate accuracy
         accuracy = accuracy_score(y_val, y_pred)
-        
-        # Create heatmap
+
         ax = axes[idx]
-        
-        # Create annotations with both count and percentage
+
         total_samples = np.sum(cm)
         annotations = []
         for i in range(len(class_labels)):
@@ -1509,103 +1590,120 @@ def create_confusion_matrices_visualization(models, X_val, y_val, class_labels):
             for j in range(len(class_labels)):
                 count = cm[i, j]
                 percentage = (count / total_samples) * 100
-                if i == j:  # Diagonal (correct predictions)
-                    row_annotations.append(f'{count}\n{percentage:.1f}%')
-                else:  # Off-diagonal (incorrect predictions)
-                    row_annotations.append(f'{count}\n{percentage:.1f}%')
+                row_annotations.append(f"{count}\n{percentage:.1f}%")
             annotations.append(row_annotations)
-        
-        # Create color map: green for correct, red/pink for incorrect
+
         colors = np.zeros_like(cm, dtype=float)
         for i in range(len(class_labels)):
             for j in range(len(class_labels)):
-                if i == j:  # Correct predictions (diagonal)
-                    colors[i, j] = 1.0  # Green
-                else:  # Incorrect predictions
-                    colors[i, j] = 0.3  # Red/Pink
-        
-        # Plot heatmap
+                colors[i, j] = 1.0 if i == j else 0.3
+
         im = ax.imshow(colors, cmap='RdYlGn', alpha=0.7, vmin=0, vmax=1)
-        
-        # Add text annotations
+
         for i in range(len(class_labels)):
             for j in range(len(class_labels)):
-                if i == j:  # Diagonal - use white text on green
-                    text_color = 'white'
-                    weight = 'bold'
-                else:  # Off-diagonal - use black text
-                    text_color = 'black'
-                    weight = 'normal'
-                
-                ax.text(j, i, annotations[i][j], ha='center', va='center',
-                       color=text_color, fontsize=10, weight=weight)
-        
-        # Customize axes
+                text_color = "white" if i == j else "black"
+                weight = "bold" if i == j else "normal"
+                ax.text(j, i, annotations[i][j],
+                        ha="center", va="center",
+                        color=text_color, fontsize=10, weight=weight)
+
         ax.set_xticks(range(len(class_labels)))
         ax.set_yticks(range(len(class_labels)))
         ax.set_xticklabels(class_labels)
         ax.set_yticklabels(class_labels)
-        ax.set_xlabel('Predicted Class')
-        ax.set_ylabel('Actual Class')
-        ax.set_title(f'{model_name}\nAccuracy: {accuracy:.1%}', fontsize=12, fontweight='bold')
-        
-        # Add grid
+        ax.set_xlabel("Predicted Class")
+        ax.set_ylabel("Actual Class")
+        ax.set_title(f"{model_name}\nAccuracy: {accuracy:.1%}", fontsize=12, fontweight="bold")
+
         ax.set_xticks(np.arange(len(class_labels)+1)-0.5, minor=True)
         ax.set_yticks(np.arange(len(class_labels)+1)-0.5, minor=True)
-        ax.grid(which='minor', color='black', linestyle='-', linewidth=1)
-        ax.tick_params(which='minor', size=0)
-    
-    # Hide any unused subplots
+        ax.grid(which="minor", color="black", linestyle="-", linewidth=1)
+        ax.tick_params(which="minor", size=0)
+
     for idx in range(len(models), 6):
         axes[idx].set_visible(False)
-    
+
     plt.tight_layout()
     confusion_matrices_file = os.path.join(PLOTS_DIR, "08_confusion_matrices.png")
-    plt.savefig(confusion_matrices_file, dpi=300, bbox_inches='tight')
+    plt.savefig(confusion_matrices_file, dpi=300, bbox_inches="tight")
     print(f"✅ Confusion matrices saved to: {confusion_matrices_file}")
     plt.close()
 
+def train_deep_model(model_class, X_train, y_train, X_val, y_val, num_classes,
+                     epochs=50, batch_size=32, lr=0.001):
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Convert to tensors
+    X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+    y_train_tensor = torch.tensor(y_train.values, dtype=torch.long)
+    X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
+    y_val_tensor = torch.tensor(y_val.values, dtype=torch.long)
+
+    train_loader = DataLoader(TensorDataset(X_train_tensor, y_train_tensor),
+                              batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(TensorDataset(X_val_tensor, y_val_tensor),
+                            batch_size=batch_size)
+
+    model = model_class(X_train.shape[1], num_classes).to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    for epoch in range(epochs):
+        model.train()
+        for X_batch, y_batch in train_loader:
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+            optimizer.zero_grad()
+            outputs = model(X_batch)
+            loss = criterion(outputs, y_batch)
+            loss.backward()
+            optimizer.step()
+
+    # Final validation predictions
+    model.eval()
+    all_preds = []
+    with torch.no_grad():
+        for X_batch, _ in val_loader:
+            X_batch = X_batch.to(device)
+            outputs = model(X_batch)
+            preds = torch.argmax(outputs, dim=1).cpu().numpy()
+            all_preds.extend(preds)
+
+    return model, np.array(all_preds)
+
+
 def train_multiple_models(X_train, X_val, y_train, y_val):
-    """Train multiple machine learning models with comprehensive evaluation"""
+    """Train multiple ML + Deep Learning models with comprehensive evaluation"""
     print("\n" + "="*50)
     print("MODEL TRAINING AND EVALUATION")
     print("="*50)
-    
-    # Define models - only the 5 specified models
+
+    # ---------------- Classical ML Models ----------------
     models = {
         'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
         'Support Vector Machine': SVC(random_state=42, probability=True),
         'K-Nearest Neighbors': KNeighborsClassifier(),
-        'Neural Network': MLPClassifier(random_state=42, max_iter=1000),
+        'Neural Network (sklearn-MLP)': MLPClassifier(random_state=42, max_iter=1000),
         'Naive Bayes': GaussianNB()
     }
-    
-    # Get class labels
+
     class_labels = sorted(y_train.unique())
-    
-    # Train models and store results
     results = {}
     trained_models = {}
-    
-    print(f"Training {len(models)} models: {', '.join(models.keys())}")
+
+    print(f"Training {len(models)} classical ML models: {', '.join(models.keys())}")
     print("-" * 60)
-    
+
     for name, model in models.items():
         print(f"\nTraining {name}...")
-        
-        # Train model
         model.fit(X_train, y_train)
         trained_models[name] = model
-        
-        # Validate on validation set
+
         val_pred = model.predict(X_val)
-        
-        # Calculate comprehensive metrics
         metrics = calculate_comprehensive_metrics(y_val, val_pred, class_labels)
-        
-        # Cross-validation on training set
         cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='accuracy')
-        
+
         results[name] = {
             'validation_accuracy': metrics['accuracy'],
             'validation_precision': metrics['precision'],
@@ -1617,20 +1715,58 @@ def train_multiple_models(X_train, X_val, y_train, y_val):
             'cv_std': cv_scores.std(),
             'model': model
         }
-        
-        print(f"Validation Results:")
-        print(f"  Accuracy:    {metrics['accuracy']:.4f}")
-        print(f"  Precision:   {metrics['precision']:.4f}")
-        print(f"  Recall:      {metrics['recall']:.4f}")
-        print(f"  Specificity: {metrics['specificity']:.4f}")
-        print(f"  F1-Score:    {metrics['f1_score']:.4f}")
-        print(f"  MCC:         {metrics['mcc']:.4f}")
-        print(f"  CV Accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
-    
-    # Create confusion matrices visualization
-    create_confusion_matrices_visualization(results, X_val, y_val, class_labels)
-    
-    # Save comprehensive model performance results
+
+        print(f"Validation Results: {metrics}")
+
+    # ---------------- Deep Learning Models ----------------
+    print("\n" + "="*50)
+    print("DEEP LEARNING MODEL TRAINING")
+    print("="*50)
+
+    from sklearn.preprocessing import LabelEncoder
+    le = LabelEncoder()
+    y_train_enc = le.fit_transform(y_train)
+    y_val_enc = le.transform(y_val)
+    num_classes = len(le.classes_)
+
+    deep_models = {
+        "Deep MLP": DeepMLP,
+        "Conv1D Net": Conv1DNet,
+        "LSTM Net": LSTMNet
+    }
+
+    for name, model_class in deep_models.items():
+        print(f"\nTraining {name}...")
+        dl_model, val_preds = train_deep_model(
+            model_class,
+            X_train, pd.Series(y_train_enc),
+            X_val, pd.Series(y_val_enc),
+            num_classes=num_classes,
+            epochs=50
+        )
+
+        val_pred_labels = le.inverse_transform(val_preds)
+        metrics = calculate_comprehensive_metrics(y_val, val_pred_labels, le.classes_)
+
+        results[name] = {
+            'validation_accuracy': metrics['accuracy'],
+            'validation_precision': metrics['precision'],
+            'validation_recall': metrics['recall'],
+            'validation_specificity': metrics['specificity'],
+            'validation_f1': metrics['f1_score'],
+            'validation_mcc': metrics['mcc'],
+            'cv_mean': np.nan,  # not using CV for DL
+            'cv_std': np.nan,
+            'model': dl_model
+        }
+
+        trained_models[name] = dl_model
+        print(f"Validation Results ({name}): {metrics}")
+
+    # ---------------- Confusion Matrices ----------------
+    create_confusion_matrices_visualization(results, X_val, y_val, class_labels, label_encoder=le)
+
+    # ---------------- Save Performance ----------------
     performance_data = []
     for name, result in results.items():
         performance_data.append({
@@ -1644,23 +1780,12 @@ def train_multiple_models(X_train, X_val, y_train, y_val):
             'cv_mean': result['cv_mean'],
             'cv_std': result['cv_std']
         })
-    
+
     performance_df = pd.DataFrame(performance_data)
     performance_file = os.path.join(DATA_DIR, "model_performance.csv")
     performance_df.to_csv(performance_file, index=False)
     print(f"\n✅ Model performance results saved to: {performance_file}")
-    
-    # Print summary table
-    print(f"\n" + "="*80)
-    print("MODEL PERFORMANCE SUMMARY")
-    print("="*80)
-    print(f"{'Model':<20} {'Accuracy':<10} {'Precision':<10} {'Recall':<10} {'Specificity':<12} {'F1-Score':<10} {'MCC':<10}")
-    print("-" * 80)
-    for name, result in results.items():
-        print(f"{name:<20} {result['validation_accuracy']:<10.4f} {result['validation_precision']:<10.4f} "
-              f"{result['validation_recall']:<10.4f} {result['validation_specificity']:<12.4f} "
-              f"{result['validation_f1']:<10.4f} {result['validation_mcc']:<10.4f}")
-    
+
     return results, trained_models
 
 def hyperparameter_tuning(X_train, y_train):
@@ -1750,82 +1875,116 @@ def hyperparameter_tuning(X_train, y_train):
     
     return tuned_models
 
-def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids):
-    """Make predictions for unclassified samples"""
+def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, label_encoder=None):
+    """Make predictions for unclassified samples with ML + Deep Learning models"""
     print("\n" + "="*50)
     print("PREDICTING UNCLASSIFIED SAMPLES")
     print("="*50)
-    
+
     all_predictions = {}
     prediction_probabilities = {}
-    
-    # Predict with original models
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # ---------------- Original Models ----------------
     for name, model_info in models.items():
         model = model_info['model']
-        y_pred = model.predict(X_test)
-        
-        # Get prediction probabilities if available
-        if hasattr(model, 'predict_proba'):
-            y_pred_proba = model.predict_proba(X_test)
-            max_probabilities = np.max(y_pred_proba, axis=1)
-            avg_confidence = np.mean(max_probabilities)
-            prediction_probabilities[name] = y_pred_proba
+        print(f"\n{name}:")
+
+        # --- Scikit-learn ---
+        if not isinstance(model, nn.Module):
+            y_pred = model.predict(X_test)
+
+            if hasattr(model, 'predict_proba'):
+                y_pred_proba = model.predict_proba(X_test)
+                max_probabilities = np.max(y_pred_proba, axis=1)
+                avg_confidence = np.mean(max_probabilities)
+                prediction_probabilities[name] = y_pred_proba
+            else:
+                max_probabilities, avg_confidence = None, None
+
+        # --- PyTorch ---
         else:
-            max_probabilities = None
-            avg_confidence = None
-        
+            model.eval()
+            X_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
+            with torch.no_grad():
+                outputs = model(X_test_tensor)
+                probs = torch.softmax(outputs, dim=1).cpu().numpy()
+                preds = np.argmax(probs, axis=1)
+
+            if label_encoder is not None:
+                y_pred = label_encoder.inverse_transform(preds)
+            else:
+                y_pred = preds
+
+            max_probabilities = np.max(probs, axis=1)
+            avg_confidence = np.mean(max_probabilities)
+            prediction_probabilities[name] = probs
+
+        # Store results
         all_predictions[name] = {
             'predictions': y_pred,
             'probabilities': max_probabilities,
             'avg_confidence': avg_confidence,
             'type': 'original'
         }
-        
-        print(f"\n{name}:")
+
         print(f"Average Prediction Confidence: {avg_confidence:.4f}" if avg_confidence else "N/A")
-        
-        # Show predictions for each sample
-        for sample_id, pred, prob in zip(test_sample_ids, y_pred, max_probabilities if max_probabilities is not None else [None]*len(y_pred)):
+        for sample_id, pred, prob in zip(test_sample_ids, y_pred,
+                                         max_probabilities if max_probabilities is not None else [None]*len(y_pred)):
             prob_str = f" (confidence: {prob:.3f})" if prob is not None else ""
             print(f"  {sample_id}: {pred}{prob_str}")
-    
-    # Predict with tuned models
+
+    # ---------------- Tuned Models ----------------
     for name, model_info in tuned_models.items():
         model = model_info['model']
-        y_pred = model.predict(X_test)
-        
-        if hasattr(model, 'predict_proba'):
-            y_pred_proba = model.predict_proba(X_test)
-            max_probabilities = np.max(y_pred_proba, axis=1)
+        print(f"\n{name} (Tuned):")
+
+        if not isinstance(model, nn.Module):  # sklearn tuned
+            y_pred = model.predict(X_test)
+            if hasattr(model, 'predict_proba'):
+                y_pred_proba = model.predict_proba(X_test)
+                max_probabilities = np.max(y_pred_proba, axis=1)
+                avg_confidence = np.mean(max_probabilities)
+                prediction_probabilities[f"{name} (Tuned)"] = y_pred_proba
+            else:
+                max_probabilities, avg_confidence = None, None
+        else:  # PyTorch tuned
+            model.eval()
+            X_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
+            with torch.no_grad():
+                outputs = model(X_test_tensor)
+                probs = torch.softmax(outputs, dim=1).cpu().numpy()
+                preds = np.argmax(probs, axis=1)
+
+            if label_encoder is not None:
+                y_pred = label_encoder.inverse_transform(preds)
+            else:
+                y_pred = preds
+
+            max_probabilities = np.max(probs, axis=1)
             avg_confidence = np.mean(max_probabilities)
-            prediction_probabilities[f"{name} (Tuned)"] = y_pred_proba
-        else:
-            max_probabilities = None
-            avg_confidence = None
-        
+            prediction_probabilities[f"{name} (Tuned)"] = probs
+
         all_predictions[f"{name} (Tuned)"] = {
             'predictions': y_pred,
             'probabilities': max_probabilities,
             'avg_confidence': avg_confidence,
             'type': 'tuned'
         }
-        
-        print(f"\n{name} (Tuned):")
+
         print(f"Average Prediction Confidence: {avg_confidence:.4f}" if avg_confidence else "N/A")
-        
-        # Show predictions for each sample
-        for sample_id, pred, prob in zip(test_sample_ids, y_pred, max_probabilities if max_probabilities is not None else [None]*len(y_pred)):
+        for sample_id, pred, prob in zip(test_sample_ids, y_pred,
+                                         max_probabilities if max_probabilities is not None else [None]*len(y_pred)):
             prob_str = f" (confidence: {prob:.3f})" if prob is not None else ""
             print(f"  {sample_id}: {pred}{prob_str}")
-    
-    # Save all predictions to comprehensive CSV
+
+    # ---------------- Save to CSV ----------------
     all_predictions_data = []
-    
     for model_name, pred_info in all_predictions.items():
         for i, sample_id in enumerate(test_sample_ids):
             prediction = pred_info['predictions'][i]
             confidence = pred_info['probabilities'][i] if pred_info['probabilities'] is not None else None
-            
             all_predictions_data.append({
                 'sample_id': sample_id,
                 'model': model_name,
@@ -1833,12 +1992,12 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids):
                 'confidence': confidence,
                 'model_type': pred_info['type']
             })
-    
+
     predictions_df = pd.DataFrame(all_predictions_data)
     predictions_file = os.path.join(DATA_DIR, "all_predictions.csv")
     predictions_df.to_csv(predictions_file, index=False)
     print(f"\n✅ All predictions saved to: {predictions_file}")
-    
+
     return all_predictions, prediction_probabilities
 
 def create_prediction_visualizations(all_predictions, prediction_probabilities, test_sample_ids):
