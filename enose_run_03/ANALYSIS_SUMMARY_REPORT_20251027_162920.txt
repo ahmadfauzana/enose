@@ -1,0 +1,144 @@
+================================================================================
+E-NOSE COCOA BEAN CLASSIFICATION - COMPREHENSIVE ANALYSIS REPORT
+================================================================================
+Analysis Date: 2025-10-27 16:33:29
+Timestamp: 20251027_162920
+Dataset Type: 6_categories
+================================================================================
+
+DATASET OVERVIEW:
+----------------------------------------
+Training Samples: 280
+  - WFB: 80
+  - UFB: 40
+  - ADB_5: 40
+  - ADB_4: 40
+  - ADB_3: 40
+  - ADB_2: 40
+Unclassified Samples: 10 (X1-X10)
+Features: 14 sensor channels (ch0-ch13)
+Number of Classes: 6
+Models Analyzed: Random Forest, SVM, KNN, Neural Network, Naive Bayes
+
+CLASS INTERPRETATION:
+----------------------------------------
+WFB: Well-Fermented Beans
+UFB: Under-Fermented Beans
+ADB_5 to ADB_2: Adequately-Fermented Beans (5=best, 2=worst quality)
+
+DATA QUALITY ASSESSMENT:
+----------------------------------------
+⚠️  Low class separability: ch2, ch5, ch8...
+
+BEST PERFORMING MODEL:
+----------------------------------------
+Model: Neural Network (Tuned)
+Average Confidence: 0.9689043046849803
+
+FINAL CLASSIFICATION RESULTS:
+----------------------------------------
+Sample_ID Predicted_Class  Confidence             Model_Used
+       X1             UFB    1.000000 Neural Network (Tuned)
+       X2             UFB    1.000000 Neural Network (Tuned)
+       X3             UFB    0.999984 Neural Network (Tuned)
+       X4             UFB    0.761316 Neural Network (Tuned)
+       X5             UFB    0.993178 Neural Network (Tuned)
+       X6             WFB    0.999983 Neural Network (Tuned)
+       X7             WFB    0.999982 Neural Network (Tuned)
+       X8             WFB    0.999998 Neural Network (Tuned)
+       X9             UFB    0.963943 Neural Network (Tuned)
+      X10           ADB_5    0.970660 Neural Network (Tuned)
+
+PREDICTION DISTRIBUTION:
+----------------------------------------
+ADB_5: 1/10 samples (10.0%)
+UFB: 6/10 samples (60.0%)
+WFB: 3/10 samples (30.0%)
+
+TOP 10 MOST CONSISTENTLY IMPORTANT FEATURES:
+----------------------------------------
+ 1. ch0: Average rank 4.7
+ 2. ch6: Average rank 5.2
+ 3. ch11: Average rank 5.8
+ 4. ch2: Average rank 6.8
+ 5. ch13: Average rank 6.9
+
+FEATURE IMPORTANCE CONSENSUS:
+----------------------------------------
+Top 5 features by consensus (Borda count):
+1. ch0: 10.31
+2. ch6: 9.85
+3. ch11: 9.15
+4. ch2: 8.23
+5. ch13: 8.08
+
+STATISTICAL SIGNIFICANCE SUMMARY:
+----------------------------------------
+Highly significant features (p<0.001): 13
+  ch0, ch1, ch2, ch3, ch4...
+Moderately significant features (p<0.01): 1
+  ch5
+
+FILES GENERATED:
+----------------------------------------
+Individual Plots (High Resolution PNG):
+  01-07. EDA Plots: class distribution, correlations, PCA, etc.
+  08-14. Prediction Analysis: confidence, agreement, heatmaps
+  15. Feature Distributions by Class
+  16. Outlier Analysis
+  17. Class Separability Analysis
+  18. Feature Importance Heatmap (All Models)
+  19. Individual Feature Importance (All Models)
+  20. Feature Ranking Comparison
+  21. Consensus Feature Importance
+  22. Class Correlation Matrix
+  23. Class Similarity Matrices
+  24. Class Profile Radar Chart
+  25. Test Sample Similarities
+
+Data Files (CSV):
+  - final_classification_results.csv
+  - comprehensive_feature_importance.csv
+  - detailed_statistical_analysis.csv
+  - class_separability.csv
+  - domain_shift_analysis.csv
+  - data_quality_metrics.csv
+  - target_correlation_analysis.csv
+  - all_predictions.csv
+  - consensus_predictions.csv
+  - model_performance.csv
+  - hyperparameter_tuning.csv
+  - detailed_class_profiles.csv
+  - sensor_discrimination_analysis.csv
+  - test_sample_class_similarities.csv
+
+Log Files:
+  - analysis_log.txt
+
+KEY INSIGHTS & RECOMMENDATIONS:
+----------------------------------------
+1. DATA QUALITY:
+   ✅ No significant domain shift detected between train/test
+
+2. FEATURE IMPORTANCE:
+   🎯 Most critical sensors: ch0, ch6, ch11
+   → Focus on these sensors for future data collection
+   → Consider sensor maintenance and calibration priorities
+
+3. MODEL PERFORMANCE:
+   ✅ High model confidence - predictions are reliable
+
+4. CLASSIFICATION RESULTS:
+   📊 Sample distribution balanced across predicted classes
+   → Validate results with domain experts
+   → Consider chemical analysis verification for uncertain samples
+
+5. NEXT STEPS:
+   • Validate predictions with chemical/sensory analysis
+   • Collect more data if confidence is low
+   • Focus on top-ranked features for sensor optimization
+   • Monitor domain shift in future data
+
+================================================================================
+END OF COMPREHENSIVE REPORT
+================================================================================

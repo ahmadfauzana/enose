@@ -146,27 +146,50 @@ timestamp = None
 logger = None
 
 def load_and_preprocess_data():
-    """Load and preprocess the e-nose dataset"""
+    """Load and preprocess the e-nose dataset - automatically detects 3 or 6 categories"""
     print("Loading and preprocessing data...")
     
-    # Load training data (Sheet1)
-    train_data = pd.read_excel('data enose_unseen.xlsx', sheet_name='Sheet1')
+    # Try to load from 6_categories first, fall back to 3_categories if not available
+    try:
+        train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='6_categories')
+        print("✅ Loaded training data from '6_categories' sheet")
+        dataset_type = "6_categories"
+    except:
+        try:
+            train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='3_categories (2)')
+            print("✅ Loaded training data from '3_categories (2)' sheet")
+            dataset_type = "3_categories"
+        except Exception as e:
+            print(f"❌ Error loading training data: {e}")
+            return None, None, None
     
-    # Load testing data (unseen) - these are unclassified cocoa bean samples
-    test_data = pd.read_excel('data enose_unseen.xlsx', sheet_name='unseen')
+    # Load testing data
+    try:
+        test_data = pd.read_excel('data_enose_new.xlsx', sheet_name='unknown')
+        print("✅ Loaded testing data from 'unknown' sheet")
+    except Exception as e:
+        print(f"❌ Error loading test data: {e}")
+        return None, None, None
     
-    # Clean column names and handle the unnamed first column
-    train_data.columns = ['class'] + [f'ch{i}' for i in range(14)]
-    test_data.columns = ['sample_id'] + [f'ch{i}' for i in range(14)]  # X1-X10 are sample IDs, not classes
+    print(f"Raw training data shape: {train_data.shape}")
+    print(f"Raw testing data shape: {test_data.shape}")
     
-    # Update class names: WF->WFB, UF->UFB, Ad->ADB
-    class_mapping = {'WF': 'WFB', 'UF': 'UFB', 'Ad': 'ADB'}
-    train_data['class'] = train_data['class'].map(class_mapping)
+    # Debug: Show unique values in the first column
+    actual_classes = train_data.iloc[:, 0].unique()
+    print(f"\nTraining categories: {actual_classes}")
+    print(f"Number of classes: {len(actual_classes)}")
+    print(f"Testing sample IDs: {test_data.iloc[:, 0].unique()}")
+    
+    # Rename columns to match what the code expects
+    train_data = train_data.rename(columns={train_data.columns[0]: 'class'})
+    test_data = test_data.rename(columns={test_data.columns[0]: 'sample_id'})
     
     # Remove any rows with missing values
     train_data = train_data.dropna()
     test_data = test_data.dropna()
     
+    print(f"\n=== FINAL PROCESSED DATA ===")
+    print(f"Dataset type: {dataset_type}")
     print(f"Training data shape: {train_data.shape}")
     print(f"Testing data shape: {test_data.shape}")
     print(f"Training classes: {train_data['class'].unique()}")
@@ -174,7 +197,7 @@ def load_and_preprocess_data():
     print(train_data['class'].value_counts())
     print(f"Unclassified samples to predict: {test_data['sample_id'].tolist()}")
     
-    return train_data, test_data
+    return train_data, test_data, dataset_type
 
 def exploratory_data_analysis(train_data, test_data):
     """Perform comprehensive EDA with individual plots"""
@@ -279,14 +302,17 @@ def exploratory_data_analysis(train_data, test_data):
     pca = PCA(n_components=2)
     X_pca = pca.fit_transform(X_scaled)
     
-    # Create color map for classes
+    # Create dynamic color map for classes
     unique_classes = train_data['class'].unique()
-    colors = ['red', 'blue', 'green', 'orange', 'purple']
+    num_classes = len(unique_classes)
+    
+    # Use a colormap that can handle any number of classes
+    colors = plt.cm.tab10(np.linspace(0, 1, num_classes))
     
     for i, class_name in enumerate(unique_classes):
         mask = train_data['class'] == class_name
         plt.scatter(X_pca[mask, 0], X_pca[mask, 1], 
-                   c=colors[i], label=class_name, alpha=0.7, s=50)
+                   c=[colors[i]], label=class_name, alpha=0.7, s=50)
     
     plt.xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.2%} variance)', fontsize=12)
     plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.2%} variance)', fontsize=12)
@@ -305,16 +331,20 @@ def exploratory_data_analysis(train_data, test_data):
     class_means = train_data.groupby('class')[feature_cols].mean()
     
     x = np.arange(len(feature_cols))
-    width = 0.25
+    width = 0.8 / len(class_means.index)  # Dynamic width based on number of classes
+    
+    # Use dynamic colors
+    num_classes = len(class_means.index)
+    colors = plt.cm.Set3(np.linspace(0, 1, num_classes))
     
     for i, class_name in enumerate(class_means.index):
         plt.bar(x + i*width, class_means.loc[class_name], width, 
-                label=class_name, alpha=0.8)
+                label=class_name, alpha=0.8, color=colors[i])
     
     plt.xlabel('Sensor Channels')
     plt.ylabel('Mean Sensor Values')
     plt.title('Mean Sensor Values by Class')
-    plt.xticks(x + width, feature_cols)
+    plt.xticks(x + width * (num_classes-1)/2, feature_cols, rotation=45)
     plt.legend()
     plt.tight_layout()
     
@@ -1241,8 +1271,9 @@ def class_profile_correlation_analysis(train_data, test_data, feature_cols):
     angles = [n / float(N) * 2 * np.pi for n in range(N)]
     angles += angles[:1]  # Complete the circle
     
-    # Colors for each class
-    colors = ['red', 'blue', 'green']
+    # Dynamic colors for each class
+    num_classes = len(class_profiles.index)
+    colors = plt.cm.viridis(np.linspace(0, 1, num_classes))
     
     for i, (class_name, profile) in enumerate(normalized_profiles.iterrows()):
         values = profile.tolist()
@@ -2000,7 +2031,7 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, 
 
     return all_predictions, prediction_probabilities
 
-def create_prediction_visualizations(all_predictions, prediction_probabilities, test_sample_ids):
+def create_prediction_visualizations(all_predictions, prediction_probabilities, test_sample_ids, train_data):
     """Create comprehensive visualizations for predictions as individual plots"""
     print("\n" + "="*50)
     print("CREATING PREDICTION VISUALIZATIONS")
@@ -2038,11 +2069,16 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
         pred_counts = np.unique(results['predictions'], return_counts=True)
         all_model_predictions[name] = dict(zip(pred_counts[0], pred_counts[1]))
     
-    training_classes = ['WFB', 'ADB', 'UFB']
+    # Get dynamic classes from training data
+    training_classes = sorted(train_data['class'].unique())
+    num_classes = len(training_classes)
+    
+    # Dynamic colors based on number of classes
+    colors_classes = plt.cm.tab10(np.linspace(0, 1, num_classes))
+    
     x_pos = np.arange(len(model_names))
     bottom = np.zeros(len(model_names))
     
-    colors_classes = ['red', 'blue', 'green']
     for i, cls in enumerate(training_classes):
         values = [all_model_predictions.get(name, {}).get(cls, 0) for name in model_names]
         plt.bar(x_pos, values, bottom=bottom, label=cls, color=colors_classes[i], alpha=0.7)
@@ -2059,40 +2095,13 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
     plt.savefig(pred_dist_file, dpi=300, bbox_inches='tight')
     print(f"✅ Prediction distribution plot saved to: {pred_dist_file}")
     plt.close()
-    
-    # 3. Model agreement analysis
-    plt.figure(figsize=(10, 6))
-    sample_agreements = []
-    for i in range(len(test_sample_ids)):
-        sample_predictions = [all_predictions[name]['predictions'][i] for name in model_names]
-        unique_preds, counts = np.unique(sample_predictions, return_counts=True)
-        max_agreement = np.max(counts)
-        sample_agreements.append(max_agreement)
-    
-    agreement_counts = np.bincount(sample_agreements)[1:]  # Exclude 0 agreements
-    x_agreement = np.arange(1, len(agreement_counts) + 1)
-    
-    plt.bar(x_agreement, agreement_counts, color='lightcoral')
-    plt.xlabel('Number of Models in Agreement', fontsize=12)
-    plt.ylabel('Number of Samples', fontsize=12)
-    plt.title('Model Agreement Distribution', fontsize=14)
-    plt.xticks(x_agreement)
-    
-    # Add values on bars
-    for i, v in enumerate(agreement_counts):
-        if v > 0:
-            plt.text(i + 1, v + 0.1, str(v), ha='center', va='bottom')
-    
-    plt.tight_layout()
-    agreement_file = os.path.join(PLOTS_DIR, "11_model_agreement.png")
-    plt.savefig(agreement_file, dpi=300, bbox_inches='tight')
-    print(f"✅ Model agreement plot saved to: {agreement_file}")
-    plt.close()
-    
+
     # 4. Individual sample predictions heatmap
     plt.figure(figsize=(14, 8))
     prediction_matrix = np.zeros((len(test_sample_ids), len(model_names)))
-    class_to_num = {'WFB': 0, 'ADB': 1, 'UFB': 2}
+    
+    # Create mapping from class names to numbers
+    class_to_num = {cls: i for i, cls in enumerate(training_classes)}
     
     for j, model_name in enumerate(model_names):
         for i, pred in enumerate(all_predictions[model_name]['predictions']):
@@ -2102,7 +2111,7 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
                 xticklabels=[name.replace(' (Tuned)', '(T)') for name in model_names],
                 yticklabels=test_sample_ids,
                 cmap='viridis', 
-                cbar_kws={'label': 'Predicted Class (0=WFB, 1=ADB, 2=UFB)'},
+                cbar_kws={'label': f'Predicted Class ({", ".join([f"{i}={cls}" for i, cls in enumerate(training_classes)])})'},
                 annot=True, fmt='.0f')
     plt.title('Prediction Heatmap', fontsize=14)
     plt.xlabel('Models', fontsize=12)
@@ -2112,6 +2121,56 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
     heatmap_file = os.path.join(PLOTS_DIR, "12_prediction_heatmap.png")
     plt.savefig(heatmap_file, dpi=300, bbox_inches='tight')
     print(f"✅ Prediction heatmap saved to: {heatmap_file}")
+    plt.close()
+
+    # 7. Consensus predictions visualization
+    plt.figure(figsize=(12, 8))
+    consensus_data = []
+    consensus_predictions = []
+    agreement_levels = []
+    
+    for i, sample_id in enumerate(test_sample_ids):
+        sample_predictions = [all_predictions[name]['predictions'][i] for name in model_names]
+        unique_preds, counts = np.unique(sample_predictions, return_counts=True)
+        
+        if len(unique_preds) == 1:
+            consensus = unique_preds[0]
+            agreement_count = len(model_names)
+        else:
+            max_count_idx = np.argmax(counts)
+            consensus = unique_preds[max_count_idx]
+            agreement_count = counts[max_count_idx]
+        
+        consensus_predictions.append(consensus)
+        agreement_levels.append(agreement_count)
+    
+    # Create stacked bar chart
+    x_pos = np.arange(len(test_sample_ids))
+    
+    # Dynamic colors for consensus
+    colors_consensus = {cls: plt.cm.tab10(i) for i, cls in enumerate(training_classes)}
+    
+    for i, (sample_id, pred, agreement) in enumerate(zip(test_sample_ids, consensus_predictions, agreement_levels)):
+        color = colors_consensus.get(pred, 'gray')
+        alpha = agreement / len(model_names)  # Transparency based on agreement level
+        plt.bar(i, 1, color=color, alpha=alpha, edgecolor='black')
+        plt.text(i, 0.5, f'{pred}\n{agreement}/{len(model_names)}', 
+                ha='center', va='center', fontweight='bold')
+    
+    plt.xlabel('Sample ID', fontsize=12)
+    plt.ylabel('Consensus', fontsize=12)
+    plt.title('Consensus Predictions (Transparency = Agreement Level)', fontsize=14)
+    plt.xticks(x_pos, test_sample_ids, rotation=45)
+    
+    # Add legend
+    for class_name, color in colors_consensus.items():
+        plt.bar([], [], color=color, label=class_name)
+    plt.legend()
+    
+    plt.tight_layout()
+    consensus_file = os.path.join(PLOTS_DIR, "15_consensus_predictions.png")
+    plt.savefig(consensus_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Consensus predictions plot saved to: {consensus_file}")
     plt.close()
     
     # 5. Confidence distributions for top 3 models
@@ -2287,7 +2346,10 @@ def main():
     
     try:
         # Load and preprocess data
-        train_data, test_data = load_and_preprocess_data()
+        train_data, test_data, dataset_type = load_and_preprocess_data()
+        if train_data is None or test_data is None:
+            print("❌ Failed to load data. Exiting.")
+            return
         
         # Exploratory data analysis
         feature_cols = exploratory_data_analysis(train_data, test_data)
@@ -2318,7 +2380,7 @@ def main():
         all_predictions, prediction_probabilities = predict_unclassified_samples(model_results, tuned_models, X_test, test_sample_ids)
         
         # Create prediction visualizations
-        best_model = create_prediction_visualizations(all_predictions, prediction_probabilities, test_sample_ids)
+        best_model = create_prediction_visualizations(all_predictions, prediction_probabilities, test_sample_ids, train_data)
         
         # Summary
         print("\n" + "="*60)
@@ -2361,10 +2423,12 @@ def main():
             print(f"{i+1}. {feature}: Average rank {avg_rank:.1f} across all methods")
         
         print(f"\nDATASET CHARACTERISTICS:")
-        print(f"- Training samples: {len(train_data)} (WFB: 40, ADB: 60, UFB: 30)")
+        print(f"- Dataset type: {dataset_type}")
+        print(f"- Training samples: {len(train_data)}")
+        print(f"- Number of classes: {len(train_data['class'].unique())}")
+        print(f"- Classes: {', '.join(sorted(train_data['class'].unique()))}")
         print(f"- Unclassified cocoa bean samples: {len(test_data)} (X1-X10)")
         print(f"- Sensor channels: {len(feature_cols)} (ch0-ch13)")
-        print(f"- Training classes: {', '.join(train_data['class'].unique())}")
         print(f"- Models analyzed: Random Forest, SVM, KNN, Neural Network, Naive Bayes")
         
         # Create final prediction table
@@ -2386,12 +2450,23 @@ def main():
         results_df.to_csv(final_results_file, index=False)
         print(f"\n✅ Final classification results saved to: {final_results_file}")
         
+        # Dynamic interpretation based on dataset type
         print(f"\n" + "="*60)
         print("INTERPRETATION:")
-        print("- WFB, ADB, UFB likely represent different types/qualities of cocoa beans")
-        print("  * WFB: Well-Fermented Beans")
-        print("  * ADB: Adequately-Fermented Beans") 
-        print("  * UFB: Under-Fermented Beans")
+        print("="*60)
+        
+        if dataset_type == "6_categories":
+            print("- WFB, UFB, ADB_2, ADB_3, ADB_4, ADB_5 represent different fermentation levels")
+            print("  * WFB: Well-Fermented Beans")
+            print("  * UFB: Under-Fermented Beans") 
+            print("  * ADB_2 to ADB_5: Adequately-Fermented Beans with different quality levels")
+            print("    (Higher number indicates better fermentation quality)")
+        else:  # 3_categories
+            print("- WFB, ADB, UFB represent different fermentation levels of cocoa beans")
+            print("  * WFB: Well-Fermented Beans")
+            print("  * ADB: Adequately-Fermented Beans")
+            print("  * UFB: Under-Fermented Beans")
+            
         print("- X1-X10 are unclassified cocoa bean samples")
         print("- The model predicts which known category each sample belongs to")
         print("- Higher confidence scores indicate more reliable predictions")
@@ -2407,7 +2482,8 @@ def main():
             best_model=best_model, 
             results_df=results_df, 
             feature_importance_analysis=feature_importance_analysis, 
-            comprehensive_analysis=comprehensive_analysis
+            comprehensive_analysis=comprehensive_analysis,
+            dataset_type=dataset_type
         )
         
         # Close logging
@@ -2419,12 +2495,13 @@ def main():
         print(f"📋 Data files (15 CSV files) saved in: {DATA_DIR}")
         print(f"📝 Log files saved in: {LOGS_DIR}")
         print(f"📄 Summary report: ANALYSIS_SUMMARY_REPORT_{timestamp}.txt")
+        print(f"🔢 Dataset type: {dataset_type}")
         print("="*60)
         print("\n🎉 Comprehensive analysis complete with confusion matrices!")
         print("   • Focus on 5 ML models: Random Forest, SVM, KNN, Neural Network, Naive Bayes")
         print("   • Comprehensive evaluation: Accuracy, Precision, Recall, Specificity, F1-Score, MCC")
         print("   • Confusion matrices visualization similar to research papers")
-        print("   • Updated class labels: WFB (Well-Fermented), ADB (Adequately-Fermented), UFB (Under-Fermented)")
+        print(f"   • {len(train_data['class'].unique())} classes: {', '.join(sorted(train_data['class'].unique()))}")
         print("   • Enhanced hyperparameter tuning for better model performance")
         print("   • Individual plots covering all aspects including class correlations")
         print("   • 15 CSV files with detailed results and comprehensive metrics")
@@ -2432,6 +2509,8 @@ def main():
         
     except Exception as e:
         print(f"\n❌ Error occurred during analysis: {str(e)}")
+        import traceback
+        print(f"Detailed traceback: {traceback.format_exc()}")
         print("Check the log file for detailed error information.")
     
     finally:
@@ -2440,7 +2519,8 @@ def main():
             logger.close()
             sys.stdout = sys.__stdout__
 
-def create_summary_report(timestamp, train_data, test_data, feature_cols, best_model, results_df, feature_importance_analysis, comprehensive_analysis):
+def create_summary_report(timestamp, train_data, test_data, feature_cols, best_model, results_df, 
+                         feature_importance_analysis, comprehensive_analysis, dataset_type):
     """Create a comprehensive summary report"""
     
     report_file = os.path.join(RESULTS_DIR, f"ANALYSIS_SUMMARY_REPORT_{timestamp}.txt")
@@ -2451,18 +2531,38 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
         f.write("="*80 + "\n")
         f.write(f"Analysis Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"Timestamp: {timestamp}\n")
+        f.write(f"Dataset Type: {dataset_type}\n")
         f.write("="*80 + "\n\n")
         
         # Dataset Overview
         f.write("DATASET OVERVIEW:\n")
         f.write("-"*40 + "\n")
         f.write(f"Training Samples: {len(train_data)}\n")
-        f.write(f"  - WFB: {len(train_data[train_data['class'] == 'WFB'])}\n")
-        f.write(f"  - ADB: {len(train_data[train_data['class'] == 'ADB'])}\n")
-        f.write(f"  - UFB: {len(train_data[train_data['class'] == 'UFB'])}\n")
+        
+        # Dynamic class distribution
+        class_distribution = train_data['class'].value_counts()
+        for class_name, count in class_distribution.items():
+            f.write(f"  - {class_name}: {count}\n")
+            
         f.write(f"Unclassified Samples: {len(test_data)} (X1-X10)\n")
         f.write(f"Features: {len(feature_cols)} sensor channels (ch0-ch13)\n")
+        f.write(f"Number of Classes: {len(train_data['class'].unique())}\n")
         f.write(f"Models Analyzed: Random Forest, SVM, KNN, Neural Network, Naive Bayes\n\n")
+        
+        # ... rest of the report function remains similar but uses dynamic class information ...
+        
+        # Update the interpretation section
+        f.write("CLASS INTERPRETATION:\n")
+        f.write("-"*40 + "\n")
+        if dataset_type == "6_categories":
+            f.write("WFB: Well-Fermented Beans\n")
+            f.write("UFB: Under-Fermented Beans\n")
+            f.write("ADB_5 to ADB_2: Adequately-Fermented Beans (5=best, 2=worst quality)\n")
+        else:
+            f.write("WFB: Well-Fermented Beans\n")
+            f.write("ADB: Adequately-Fermented Beans\n")
+            f.write("UFB: Under-Fermented Beans\n")
+        f.write("\n")
         
         # Data Quality Assessment
         f.write("DATA QUALITY ASSESSMENT:\n")
