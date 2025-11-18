@@ -1,0 +1,11 @@
+Sample_ID,Predicted_Class,Confidence,Model_Used,Model_Class
+X1,UFB,0.9999999999998623,Neural Network (Tuned),Classical ML
+X2,UFB,0.9999999999994444,Neural Network (Tuned),Classical ML
+X3,UFB,0.9999835652051551,Neural Network (Tuned),Classical ML
+X4,UFB,0.7613158043409184,Neural Network (Tuned),Classical ML
+X5,UFB,0.9931779267841214,Neural Network (Tuned),Classical ML
+X6,WFB,0.9999834134830298,Neural Network (Tuned),Classical ML
+X7,WFB,0.99998180164623,Neural Network (Tuned),Classical ML
+X8,WFB,0.9999982518587689,Neural Network (Tuned),Classical ML
+X9,UFB,0.9639425711284025,Neural Network (Tuned),Classical ML
+X10,ADB_5,0.9706597124038703,Neural Network (Tuned),Classical ML

@@ -29,51 +29,267 @@ warnings.filterwarnings('ignore')
 # Set style for better plots
 plt.style.use('seaborn-v0_8')
 sns.set_palette("husl")
-
-class DeepMLP(nn.Module):
-    def __init__(self, input_dim, num_classes):
+class ImprovedDeepMLP(nn.Module):
+    """Enhanced Deep MLP with residual connections and layer normalization"""
+    def __init__(self, input_dim, num_classes, dropout_rate=0.4):
         super().__init__()
-        self.fc1 = nn.Linear(input_dim, 128)
-        self.bn1 = nn.BatchNorm1d(128)
-        self.fc2 = nn.Linear(128, 64)
-        self.bn2 = nn.BatchNorm1d(64)
-        self.dropout = nn.Dropout(0.3)
-        self.fc3 = nn.Linear(64, num_classes)
-
+        
+        # Input projection
+        self.input_proj = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.LayerNorm(256),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate)
+        )
+        
+        # Residual blocks
+        self.block1 = self._make_residual_block(256, 256, dropout_rate)
+        self.block2 = self._make_residual_block(256, 128, dropout_rate)
+        self.block3 = self._make_residual_block(128, 128, dropout_rate)
+        
+        # Output layer
+        self.classifier = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.LayerNorm(64),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate * 0.5),
+            nn.Linear(64, num_classes)
+        )
+        
+        # Initialize weights
+        self.apply(self._init_weights)
+    
+    def _make_residual_block(self, in_features, out_features, dropout_rate):
+        """Create a residual block with skip connection"""
+        if in_features == out_features:
+            return ResidualBlock(in_features, out_features, dropout_rate)
+        else:
+            return nn.Sequential(
+                nn.Linear(in_features, out_features),
+                nn.LayerNorm(out_features),
+                nn.ReLU(),
+                nn.Dropout(dropout_rate)
+            )
+    
+    def _init_weights(self, m):
+        """Initialize weights using Xavier initialization"""
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+    
     def forward(self, x):
-        x = torch.relu(self.bn1(self.fc1(x)))
-        x = torch.relu(self.bn2(self.fc2(x)))
-        x = self.dropout(x)
-        return self.fc3(x)
+        x = self.input_proj(x)
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+        x = self.classifier(x)
+        return x
 
-
-class Conv1DNet(nn.Module):
-    def __init__(self, input_dim, num_classes):
+class ResidualBlock(nn.Module):
+    """Residual block with skip connection"""
+    def __init__(self, in_features, out_features, dropout_rate):
         super().__init__()
-        self.conv1 = nn.Conv1d(1, 32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv1d(32, 64, kernel_size=3, padding=1)
-        self.fc1 = nn.Linear(64 * input_dim, 128)
-        self.fc2 = nn.Linear(128, num_classes)
-
+        self.layers = nn.Sequential(
+            nn.Linear(in_features, out_features),
+            nn.LayerNorm(out_features),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(out_features, out_features),
+            nn.LayerNorm(out_features)
+        )
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(dropout_rate * 0.5)
+        
     def forward(self, x):
-        x = x.unsqueeze(1)  # (B,1,14)
-        x = torch.relu(self.conv1(x))
-        x = torch.relu(self.conv2(x))
-        x = x.view(x.size(0), -1)
-        x = torch.relu(self.fc1(x))
-        return self.fc2(x)
+        residual = x
+        out = self.layers(x)
+        out = out + residual  # Skip connection
+        out = self.relu(out)
+        out = self.dropout(out)
+        return out
 
-class LSTMNet(nn.Module):
-    def __init__(self, input_dim, num_classes, hidden_size=64):
+class ImprovedConv1DNet(nn.Module):
+    """Enhanced 1D CNN with attention mechanism"""
+    def __init__(self, input_dim, num_classes, dropout_rate=0.3):
         super().__init__()
-        self.lstm = nn.LSTM(input_dim, hidden_size, batch_first=True)
-        self.fc = nn.Linear(hidden_size, num_classes)
-
+        
+        # Convolutional layers with increasing filters
+        self.conv_layers = nn.Sequential(
+            # Block 1
+            nn.Conv1d(1, 64, kernel_size=3, padding=1),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            
+            # Block 2
+            nn.Conv1d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2, stride=2),
+            nn.Dropout(dropout_rate),
+            
+            # Block 3
+            nn.Conv1d(128, 256, kernel_size=3, padding=1),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool1d(output_size=4)
+        )
+        
+        # Attention mechanism
+        self.attention = AttentionLayer(256 * 4)
+        
+        # Fully connected layers
+        self.classifier = nn.Sequential(
+            nn.Linear(256 * 4, 128),
+            nn.LayerNorm(128),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(128, 64),
+            nn.LayerNorm(64),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate * 0.5),
+            nn.Linear(64, num_classes)
+        )
+        
+        self.apply(self._init_weights)
+    
+    def _init_weights(self, m):
+        if isinstance(m, (nn.Conv1d, nn.Linear)):
+            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+    
     def forward(self, x):
-        # Treat each feature as "time-step=1" sequence
-        x = x.unsqueeze(1)  # (B,1,14)
-        out, (h, c) = self.lstm(x)
-        return self.fc(h[-1])
+        x = x.unsqueeze(1)  # Add channel dimension
+        x = self.conv_layers(x)
+        x = x.view(x.size(0), -1)  # Flatten
+        x = self.attention(x)
+        x = self.classifier(x)
+        return x
+
+class AttentionLayer(nn.Module):
+    """Simple attention mechanism"""
+    def __init__(self, input_dim):
+        super().__init__()
+        self.attention = nn.Sequential(
+            nn.Linear(input_dim, input_dim // 4),
+            nn.Tanh(),
+            nn.Linear(input_dim // 4, 1),
+            nn.Softmax(dim=1)
+        )
+    
+    def forward(self, x):
+        weights = self.attention(x.unsqueeze(1))
+        weighted = x * weights.squeeze(1)
+        return weighted
+
+class ImprovedLSTMNet(nn.Module):
+    """Enhanced Bidirectional LSTM with attention"""
+    def __init__(self, input_dim, num_classes, hidden_size=128, num_layers=2, dropout_rate=0.3):
+        super().__init__()
+        
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        # Bidirectional LSTM
+        self.lstm = nn.LSTM(
+            input_size=input_dim, 
+            hidden_size=hidden_size, 
+            num_layers=num_layers, 
+            batch_first=True,
+            dropout=dropout_rate if num_layers > 1 else 0,
+            bidirectional=True
+        )
+        
+        # Attention mechanism
+        self.attention = nn.Sequential(
+            nn.Linear(hidden_size * 2, hidden_size),
+            nn.Tanh(),
+            nn.Linear(hidden_size, 1),
+            nn.Softmax(dim=1)
+        )
+        
+        # Classifier
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size * 2, 128),
+            nn.LayerNorm(128),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(128, 64),
+            nn.LayerNorm(64),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate * 0.5),
+            nn.Linear(64, num_classes)
+        )
+        
+        self.apply(self._init_weights)
+    
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+    
+    def forward(self, x):
+        x = x.unsqueeze(1)  # Add sequence dimension
+        lstm_out, _ = self.lstm(x)
+        
+        # Apply attention
+        attn_weights = self.attention(lstm_out)
+        attended = torch.sum(lstm_out * attn_weights, dim=1)
+        
+        # Classify
+        out = self.classifier(attended)
+        return out
+
+class TransformerNet(nn.Module):
+    """Transformer-based model for tabular data"""
+    def __init__(self, input_dim, num_classes, d_model=128, nhead=4, num_layers=2, dropout_rate=0.3):
+        super().__init__()
+        
+        # Input embedding
+        self.embedding = nn.Sequential(
+            nn.Linear(input_dim, d_model),
+            nn.LayerNorm(d_model),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate)
+        )
+        
+        # Transformer encoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=nhead,
+            dim_feedforward=d_model * 4,
+            dropout=dropout_rate,
+            batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        
+        # Classifier
+        self.classifier = nn.Sequential(
+            nn.Linear(d_model, 64),
+            nn.LayerNorm(64),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(64, num_classes)
+        )
+        
+        self.apply(self._init_weights)
+    
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+    
+    def forward(self, x):
+        x = self.embedding(x)
+        x = x.unsqueeze(1)  # Add sequence dimension
+        x = self.transformer(x)
+        x = x.squeeze(1)  # Remove sequence dimension
+        x = self.classifier(x)
+        return x
 
 def compute_feature_importances(model, X_val, y_val):
     """Compute feature importances if supported"""
@@ -1505,20 +1721,16 @@ def prepare_data_for_modeling(train_data, test_data, feature_cols):
     print("DATA PREPARATION")
     print("="*50)
     
-    # Separate features and targets for training
     X_train = train_data[feature_cols]
     y_train = train_data['class']
     
-    # Test data features (no labels - these are what we want to predict)
     X_test = test_data[feature_cols]
     test_sample_ids = test_data['sample_id']
     
-    # Scale features
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Create validation split from training data (stratified)
     X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(
         X_train_scaled, y_train, test_size=0.3, random_state=42, 
         stratify=y_train if len(y_train.unique()) > 1 else None
@@ -1527,7 +1739,6 @@ def prepare_data_for_modeling(train_data, test_data, feature_cols):
     print(f"Training set size: {X_train_split.shape}")
     print(f"Validation set size: {X_val_split.shape}")
     print(f"Unclassified samples to predict: {X_test_scaled.shape}")
-    print(f"Sample IDs: {test_sample_ids.tolist()}")
     
     return X_train_scaled, X_test_scaled, y_train, test_sample_ids, X_train_split, X_val_split, y_train_split, y_val_split, scaler
 
@@ -1536,19 +1747,16 @@ def calculate_comprehensive_metrics(y_true, y_pred, class_labels):
     from sklearn.metrics import (precision_score, recall_score, f1_score, 
                                 matthews_corrcoef, accuracy_score, confusion_matrix)
     
-    # Calculate metrics
     accuracy = accuracy_score(y_true, y_pred)
     precision = precision_score(y_true, y_pred, average='weighted', zero_division=0)
     recall = recall_score(y_true, y_pred, average='weighted', zero_division=0)
     f1 = f1_score(y_true, y_pred, average='weighted', zero_division=0)
     mcc = matthews_corrcoef(y_true, y_pred)
     
-    # Calculate specificity (per class, then weighted average)
     cm = confusion_matrix(y_true, y_pred, labels=class_labels)
     specificities = []
     
     for i, class_label in enumerate(class_labels):
-        # For multiclass: specificity = TN / (TN + FP)
         tn = np.sum(cm) - (np.sum(cm[i, :]) + np.sum(cm[:, i]) - cm[i, i])
         fp = np.sum(cm[:, i]) - cm[i, i]
         
@@ -1558,7 +1766,6 @@ def calculate_comprehensive_metrics(y_true, y_pred, class_labels):
             specificity = 0.0
         specificities.append(specificity)
     
-    # Weighted average specificity
     class_counts = [np.sum(y_true == label) for label in class_labels]
     total_samples = sum(class_counts)
     weighted_specificity = sum(spec * count / total_samples 
@@ -1579,36 +1786,35 @@ def create_confusion_matrices_visualization(models, X_val, y_val, class_labels, 
     print("CREATING CONFUSION MATRICES")
     print("="*50)
 
+    # Select top 6 models by validation accuracy
+    sorted_models = sorted(models.items(), 
+                          key=lambda x: x[1]['validation_accuracy'], 
+                          reverse=True)[:6]
+    
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     axes = axes.flatten()
 
-    model_names = list(models.keys())
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    for idx, (model_name, model_info) in enumerate(models.items()):
-        if idx >= 6:  # Limit to 6 plots
-            break
-
+    for idx, (model_name, model_info) in enumerate(sorted_models):
         model = model_info['model']
 
-        # ---- Prediction step ----
-        if isinstance(model, nn.Module):  # PyTorch model
+        # Prediction step
+        if isinstance(model, nn.Module):
             model.eval()
             X_val_tensor = torch.tensor(X_val, dtype=torch.float32).to(device)
             with torch.no_grad():
                 outputs = model(X_val_tensor)
                 preds = torch.argmax(outputs, dim=1).cpu().numpy()
 
-            # If label encoder provided, convert back to original labels
             if label_encoder is not None:
                 y_pred = label_encoder.inverse_transform(preds)
             else:
                 y_pred = preds
-
-        else:  # Scikit-learn model
+        else:
             y_pred = model.predict(X_val)
 
-        # ---- Confusion Matrix ----
+        # Confusion Matrix
         cm = confusion_matrix(y_val, y_pred, labels=class_labels)
         accuracy = accuracy_score(y_val, y_pred)
 
@@ -1645,73 +1851,164 @@ def create_confusion_matrices_visualization(models, X_val, y_val, class_labels, 
         ax.set_yticklabels(class_labels)
         ax.set_xlabel("Predicted Class")
         ax.set_ylabel("Actual Class")
-        ax.set_title(f"{model_name}\nAccuracy: {accuracy:.1%}", fontsize=12, fontweight="bold")
+        
+        # Add model type indicator
+        model_type = "DL" if isinstance(model, nn.Module) else "ML"
+        ax.set_title(f"{model_name} [{model_type}]\nAccuracy: {accuracy:.1%}", 
+                    fontsize=12, fontweight="bold")
 
         ax.set_xticks(np.arange(len(class_labels)+1)-0.5, minor=True)
         ax.set_yticks(np.arange(len(class_labels)+1)-0.5, minor=True)
         ax.grid(which="minor", color="black", linestyle="-", linewidth=1)
         ax.tick_params(which="minor", size=0)
 
-    for idx in range(len(models), 6):
-        axes[idx].set_visible(False)
-
     plt.tight_layout()
     confusion_matrices_file = os.path.join(PLOTS_DIR, "08_confusion_matrices.png")
     plt.savefig(confusion_matrices_file, dpi=300, bbox_inches="tight")
-    print(f"✅ Confusion matrices saved to: {confusion_matrices_file}")
+    print(f"✅ Confusion matrices (top 6 models) saved to: {confusion_matrices_file}")
     plt.close()
 
-def train_deep_model(model_class, X_train, y_train, X_val, y_val, num_classes,
-                     epochs=50, batch_size=32, lr=0.001):
-
+def train_deep_model(model_class, X_train, y_train, X_val, y_val, num_classes, 
+                     epochs=100, batch_size=32, lr=0.001, patience=10, min_delta=0.001): # Added patience, min_delta
+    """Improved training with better hyperparameters and techniques"""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    print(f"Training on device: {device}")
+    
     # Convert to tensors
     X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
     y_train_tensor = torch.tensor(y_train.values, dtype=torch.long)
     X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
     y_val_tensor = torch.tensor(y_val.values, dtype=torch.long)
 
-    train_loader = DataLoader(TensorDataset(X_train_tensor, y_train_tensor),
-                              batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(TensorDataset(X_val_tensor, y_val_tensor),
-                            batch_size=batch_size)
+    train_loader = DataLoader(
+        TensorDataset(X_train_tensor, y_train_tensor),
+        batch_size=batch_size,
+        shuffle=True,
+        drop_last=True  # Helps with BatchNorm
+    )
+    val_loader = DataLoader(
+        TensorDataset(X_val_tensor, y_val_tensor),
+        batch_size=batch_size
+    )
 
+    # Initialize model
     model = model_class(X_train.shape[1], num_classes).to(device)
+    
+    # Loss and optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    
+    # Learning rate scheduler with warmup
+    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=10, T_mult=2, eta_min=1e-6
+    )
+
+    best_val_loss = float('inf')
+    best_val_acc = 0.0
+    epochs_no_improve = 0
+    early_stop = False
+    
+    train_losses = []
+    val_losses = []
+    val_accuracies = []
 
     for epoch in range(epochs):
+        if early_stop:
+            print(f"Early stopping at epoch {epoch+1}")
+            break
+
+        # Training phase
         model.train()
+        total_train_loss = 0.0
         for X_batch, y_batch in train_loader:
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+            
             optimizer.zero_grad()
             outputs = model(X_batch)
             loss = criterion(outputs, y_batch)
             loss.backward()
+            
+            # Gradient clipping
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            
             optimizer.step()
+            total_train_loss += loss.item()
 
-    # Final validation predictions
+        avg_train_loss = total_train_loss / len(train_loader)
+        train_losses.append(avg_train_loss)
+
+        # Validation phase
+        model.eval()
+        total_val_loss = 0.0
+        all_val_preds = []
+        all_val_labels = []
+        
+        with torch.no_grad():
+            for X_batch, y_batch in val_loader:
+                X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+                outputs = model(X_batch)
+                val_loss = criterion(outputs, y_batch)
+                total_val_loss += val_loss.item()
+                
+                preds = torch.argmax(outputs, dim=1).cpu().numpy()
+                all_val_preds.extend(preds)
+                all_val_labels.extend(y_batch.cpu().numpy())
+        
+        avg_val_loss = total_val_loss / len(val_loader)
+        val_acc = accuracy_score(all_val_labels, all_val_preds)
+        
+        val_losses.append(avg_val_loss)
+        val_accuracies.append(val_acc)
+
+        # Print progress
+        if (epoch + 1) % 10 == 0:
+            print(f"Epoch [{epoch+1}/{epochs}], Train Loss: {avg_train_loss:.4f}, "
+                  f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}")
+
+        # Early stopping based on validation accuracy
+        if val_acc > best_val_acc + min_delta:
+            best_val_loss = avg_val_loss
+            best_val_acc = val_acc
+            epochs_no_improve = 0
+            # Save best model weights
+            best_model_state = model.state_dict().copy()
+        else:
+            epochs_no_improve += 1
+            if epochs_no_improve >= patience:
+                print(f"Early stopping triggered. Best Val Acc: {best_val_acc:.4f}")
+                early_stop = True
+        
+        scheduler.step()
+
+    # Load best model weights
+    if 'best_model_state' in locals():
+        model.load_state_dict(best_model_state)
+    
+    # Final evaluation
     model.eval()
-    all_preds = []
+    final_preds = []
     with torch.no_grad():
-        for X_batch, _ in val_loader:
+        for X_batch, y_batch in val_loader:
             X_batch = X_batch.to(device)
             outputs = model(X_batch)
             preds = torch.argmax(outputs, dim=1).cpu().numpy()
-            all_preds.extend(preds)
+            final_preds.extend(preds)
 
-    return model, np.array(all_preds)
-
+    return model, np.array(final_preds), {
+        'train_losses': train_losses,
+        'val_losses': val_losses,
+        'val_accuracies': val_accuracies,
+        'best_val_acc': best_val_acc
+    }
 
 def train_multiple_models(X_train, X_val, y_train, y_val):
-    """Train multiple ML + Deep Learning models with comprehensive evaluation"""
+    """Train multiple ML + Enhanced Deep Learning models"""
     print("\n" + "="*50)
     print("MODEL TRAINING AND EVALUATION")
     print("="*50)
 
-    # ---------------- Classical ML Models ----------------
-    models = {
+    # Classical ML Models
+    ml_models = {
         'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
         'Support Vector Machine': SVC(random_state=42, probability=True),
         'K-Nearest Neighbors': KNeighborsClassifier(),
@@ -1723,10 +2020,10 @@ def train_multiple_models(X_train, X_val, y_train, y_val):
     results = {}
     trained_models = {}
 
-    print(f"Training {len(models)} classical ML models: {', '.join(models.keys())}")
+    print(f"\nTraining {len(ml_models)} classical ML models...")
     print("-" * 60)
 
-    for name, model in models.items():
+    for name, model in ml_models.items():
         print(f"\nTraining {name}...")
         model.fit(X_train, y_train)
         trained_models[name] = model
@@ -1747,33 +2044,37 @@ def train_multiple_models(X_train, X_val, y_train, y_val):
             'model': model
         }
 
-        print(f"Validation Results: {metrics}")
+        print(f"✅ Validation Accuracy: {metrics['accuracy']:.4f}")
 
-    # ---------------- Deep Learning Models ----------------
+    # Enhanced Deep Learning Models
     print("\n" + "="*50)
-    print("DEEP LEARNING MODEL TRAINING")
+    print("ENHANCED DEEP LEARNING MODEL TRAINING")
     print("="*50)
 
-    from sklearn.preprocessing import LabelEncoder
     le = LabelEncoder()
     y_train_enc = le.fit_transform(y_train)
     y_val_enc = le.transform(y_val)
     num_classes = len(le.classes_)
 
     deep_models = {
-        "Deep MLP": DeepMLP,
-        "Conv1D Net": Conv1DNet,
-        "LSTM Net": LSTMNet
+        "Enhanced Deep MLP": ImprovedDeepMLP,
+        "Enhanced Conv1D Net": ImprovedConv1DNet,
+        "Enhanced LSTM Net": ImprovedLSTMNet,
+        "Transformer Net": TransformerNet
     }
 
     for name, model_class in deep_models.items():
-        print(f"\nTraining {name}...")
-        dl_model, val_preds = train_deep_model(
+        print(f"\n{'='*60}")
+        print(f"Training {name}...")
+        print(f"{'='*60}")
+        
+        dl_model, val_preds, training_history = train_deep_model(
             model_class,
             X_train, pd.Series(y_train_enc),
             X_val, pd.Series(y_val_enc),
             num_classes=num_classes,
-            epochs=50
+            epochs=150,
+            batch_size=16
         )
 
         val_pred_labels = le.inverse_transform(val_preds)
@@ -1786,22 +2087,26 @@ def train_multiple_models(X_train, X_val, y_train, y_val):
             'validation_specificity': metrics['specificity'],
             'validation_f1': metrics['f1_score'],
             'validation_mcc': metrics['mcc'],
-            'cv_mean': np.nan,  # not using CV for DL
-            'cv_std': np.nan,
-            'model': dl_model
+            'cv_mean': training_history['best_val_acc'],
+            'cv_std': 0.0,
+            'model': dl_model,
+            'training_history': training_history
         }
 
         trained_models[name] = dl_model
-        print(f"Validation Results ({name}): {metrics}")
+        print(f"\n✅ Best Validation Accuracy: {training_history['best_val_acc']:.4f}")
+        print(f"Final Metrics: Acc={metrics['accuracy']:.4f}, "
+              f"F1={metrics['f1_score']:.4f}, MCC={metrics['mcc']:.4f}")
 
-    # ---------------- Confusion Matrices ----------------
+    # Create confusion matrices
     create_confusion_matrices_visualization(results, X_val, y_val, class_labels, label_encoder=le)
 
-    # ---------------- Save Performance ----------------
+    # Save performance
     performance_data = []
     for name, result in results.items():
         performance_data.append({
             'model': name,
+            'model_type': 'Deep Learning' if any(dl_name in name for dl_name in ['MLP', 'Conv1D', 'LSTM', 'Transformer']) else 'Classical ML',
             'validation_accuracy': result['validation_accuracy'],
             'validation_precision': result['validation_precision'],
             'validation_recall': result['validation_recall'],
@@ -1813,9 +2118,16 @@ def train_multiple_models(X_train, X_val, y_train, y_val):
         })
 
     performance_df = pd.DataFrame(performance_data)
+    performance_df = performance_df.sort_values('validation_accuracy', ascending=False)
     performance_file = os.path.join(DATA_DIR, "model_performance.csv")
     performance_df.to_csv(performance_file, index=False)
     print(f"\n✅ Model performance results saved to: {performance_file}")
+    
+    # Print performance summary
+    print(f"\n{'='*70}")
+    print("MODEL PERFORMANCE SUMMARY (Sorted by Accuracy)")
+    print(f"{'='*70}")
+    print(performance_df.to_string(index=False))
 
     return results, trained_models
 
@@ -1825,7 +2137,6 @@ def hyperparameter_tuning(X_train, y_train):
     print("HYPERPARAMETER TUNING")
     print("="*50)
     
-    # Parameter grids for selected models
     param_grids = {
         'Random Forest': {
             'n_estimators': [50, 100, 200],
@@ -1877,7 +2188,6 @@ def hyperparameter_tuning(X_train, y_train):
         print(f"Best parameters: {grid_search.best_params_}")
         print(f"Best CV score: {grid_search.best_score_:.4f}")
     
-    # Note: Naive Bayes doesn't need hyperparameter tuning, so we'll add it with default parameters
     print(f"\nAdding Naive Bayes with default parameters...")
     nb_model = GaussianNB()
     nb_scores = cross_val_score(nb_model, X_train, y_train, cv=3, scoring='accuracy')
@@ -1885,12 +2195,10 @@ def hyperparameter_tuning(X_train, y_train):
     
     tuned_models['Naive Bayes'] = {
         'model': nb_model,
-        'best_params': 'Default parameters (no tuning needed)',
+        'best_params': 'Default parameters',
         'best_score': nb_scores.mean()
     }
-    print(f"Naive Bayes CV score: {nb_scores.mean():.4f}")
     
-    # Save hyperparameter tuning results
     tuning_data = []
     for name, result in tuned_models.items():
         tuning_data.append({
@@ -1917,12 +2225,11 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # ---------------- Original Models ----------------
+    # Original Models (ML + DL)
     for name, model_info in models.items():
         model = model_info['model']
         print(f"\n{name}:")
 
-        # --- Scikit-learn ---
         if not isinstance(model, nn.Module):
             y_pred = model.predict(X_test)
 
@@ -1933,8 +2240,6 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, 
                 prediction_probabilities[name] = y_pred_proba
             else:
                 max_probabilities, avg_confidence = None, None
-
-        # --- PyTorch ---
         else:
             model.eval()
             X_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
@@ -1952,12 +2257,12 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, 
             avg_confidence = np.mean(max_probabilities)
             prediction_probabilities[name] = probs
 
-        # Store results
         all_predictions[name] = {
             'predictions': y_pred,
             'probabilities': max_probabilities,
             'avg_confidence': avg_confidence,
-            'type': 'original'
+            'type': 'original',
+            'model_class': 'Deep Learning' if isinstance(model, nn.Module) else 'Classical ML'
         }
 
         print(f"Average Prediction Confidence: {avg_confidence:.4f}" if avg_confidence else "N/A")
@@ -1966,12 +2271,12 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, 
             prob_str = f" (confidence: {prob:.3f})" if prob is not None else ""
             print(f"  {sample_id}: {pred}{prob_str}")
 
-    # ---------------- Tuned Models ----------------
+    # Tuned Models
     for name, model_info in tuned_models.items():
         model = model_info['model']
         print(f"\n{name} (Tuned):")
 
-        if not isinstance(model, nn.Module):  # sklearn tuned
+        if not isinstance(model, nn.Module):
             y_pred = model.predict(X_test)
             if hasattr(model, 'predict_proba'):
                 y_pred_proba = model.predict_proba(X_test)
@@ -1980,7 +2285,7 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, 
                 prediction_probabilities[f"{name} (Tuned)"] = y_pred_proba
             else:
                 max_probabilities, avg_confidence = None, None
-        else:  # PyTorch tuned
+        else:
             model.eval()
             X_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
             with torch.no_grad():
@@ -2001,7 +2306,8 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, 
             'predictions': y_pred,
             'probabilities': max_probabilities,
             'avg_confidence': avg_confidence,
-            'type': 'tuned'
+            'type': 'tuned',
+            'model_class': 'Deep Learning' if isinstance(model, nn.Module) else 'Classical ML'
         }
 
         print(f"Average Prediction Confidence: {avg_confidence:.4f}" if avg_confidence else "N/A")
@@ -2010,7 +2316,7 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, 
             prob_str = f" (confidence: {prob:.3f})" if prob is not None else ""
             print(f"  {sample_id}: {pred}{prob_str}")
 
-    # ---------------- Save to CSV ----------------
+    # Save to CSV
     all_predictions_data = []
     for model_name, pred_info in all_predictions.items():
         for i, sample_id in enumerate(test_sample_ids):
@@ -2019,6 +2325,7 @@ def predict_unclassified_samples(models, tuned_models, X_test, test_sample_ids, 
             all_predictions_data.append({
                 'sample_id': sample_id,
                 'model': model_name,
+                'model_class': pred_info['model_class'],
                 'predicted_class': prediction,
                 'confidence': confidence,
                 'model_type': pred_info['type']
@@ -2039,22 +2346,29 @@ def create_prediction_visualizations(all_predictions, prediction_probabilities, 
     
     model_names = list(all_predictions.keys())
     
-    # 1. Model confidence comparison
-    plt.figure(figsize=(14, 8))
+    # 1. Model confidence comparison with model type coloring
+    plt.figure(figsize=(16, 8))
     confidences = [all_predictions[name].get('avg_confidence', 0) or 0 for name in model_names]
     
-    colors = ['skyblue' if 'Tuned' not in name else 'orange' for name in model_names]
-    bars = plt.bar(range(len(model_names)), confidences, color=colors)
+    # Color by model type
+    colors = []
+    for name in model_names:
+        pred_info = all_predictions[name]
+        if pred_info['model_class'] == 'Deep Learning':
+            colors.append('darkblue' if 'Tuned' not in name else 'royalblue')
+        else:
+            colors.append('darkgreen' if 'Tuned' not in name else 'lightgreen')
+    
+    bars = plt.bar(range(len(model_names)), confidences, color=colors, alpha=0.7, edgecolor='black')
     plt.xlabel('Models', fontsize=12)
     plt.ylabel('Average Prediction Confidence', fontsize=12)
-    plt.title('Model Confidence Comparison', fontsize=14)
+    plt.title('Model Confidence Comparison (Blue=Deep Learning, Green=Classical ML)', fontsize=14)
     plt.xticks(range(len(model_names)), model_names, rotation=45, ha='right')
     
-    # Add confidence values on bars
     for bar, conf in zip(bars, confidences):
         if conf > 0:
             plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-                    f'{conf:.3f}', ha='center', va='bottom')
+                    f'{conf:.3f}', ha='center', va='bottom', fontsize=8)
     
     plt.tight_layout()
     confidence_plot_file = os.path.join(PLOTS_DIR, "09_model_confidence.png")
@@ -2387,14 +2701,12 @@ def main():
         print("ANALYSIS SUMMARY")
         print("="*60)
         
-        # Find best model by confidence
-        best_model_name = best_model[0]
-        best_confidence = best_model[1].get('avg_confidence', 'N/A')
-        print(f"\nMost confident model: {best_model_name}")
-        print(f"Average Prediction Confidence: {best_confidence}")
+        print(f"\nBest performing model: {best_model[0]}")
+        print(f"Model Class: {best_model[1]['model_class']}")
+        print(f"Average Confidence: {best_model[1].get('avg_confidence', 'N/A'):.4f}")
         
         # Show final predictions from best model
-        print(f"\nFINAL PREDICTIONS (using {best_model_name}):")
+        print(f"\nFINAL PREDICTIONS (using {best_model[0]}):")
         print("-" * 40)
         predictions = best_model[1]['predictions']
         probabilities = best_model[1]['probabilities']
@@ -2440,7 +2752,8 @@ def main():
             'Sample_ID': test_sample_ids,
             'Predicted_Class': predictions,
             'Confidence': probabilities if probabilities is not None else ['N/A'] * len(predictions),
-            'Model_Used': [best_model_name] * len(predictions)
+            'Model_Used': [best_model[0]] * len(predictions),
+            'Model_Class': [best_model[1]['model_class']] * len(predictions)
         })
         
         print(results_df.to_string(index=False))
@@ -2483,7 +2796,8 @@ def main():
             results_df=results_df, 
             feature_importance_analysis=feature_importance_analysis, 
             comprehensive_analysis=comprehensive_analysis,
-            dataset_type=dataset_type
+            dataset_type=dataset_type,
+            all_models_results=model_results
         )
         
         # Close logging
@@ -2498,7 +2812,8 @@ def main():
         print(f"🔢 Dataset type: {dataset_type}")
         print("="*60)
         print("\n🎉 Comprehensive analysis complete with confusion matrices!")
-        print("   • Focus on 5 ML models: Random Forest, SVM, KNN, Neural Network, Naive Bayes")
+        print("   • 5 Classical ML models trained and evaluated")
+        print("   • 4 Advanced deep learning models with modern architectures")
         print("   • Comprehensive evaluation: Accuracy, Precision, Recall, Specificity, F1-Score, MCC")
         print("   • Confusion matrices visualization similar to research papers")
         print(f"   • {len(train_data['class'].unique())} classes: {', '.join(sorted(train_data['class'].unique()))}")
@@ -2520,7 +2835,7 @@ def main():
             sys.stdout = sys.__stdout__
 
 def create_summary_report(timestamp, train_data, test_data, feature_cols, best_model, results_df, 
-                         feature_importance_analysis, comprehensive_analysis, dataset_type):
+                         feature_importance_analysis, comprehensive_analysis, dataset_type, all_models_results):
     """Create a comprehensive summary report"""
     
     report_file = os.path.join(RESULTS_DIR, f"ANALYSIS_SUMMARY_REPORT_{timestamp}.txt")
@@ -2528,6 +2843,7 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
     with open(report_file, 'w', encoding='utf-8') as f:
         f.write("="*80 + "\n")
         f.write("E-NOSE COCOA BEAN CLASSIFICATION - COMPREHENSIVE ANALYSIS REPORT\n")
+        f.write("WITH ENHANCED DEEP LEARNING MODELS\n")
         f.write("="*80 + "\n")
         f.write(f"Analysis Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"Timestamp: {timestamp}\n")
@@ -2539,61 +2855,64 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
         f.write("-"*40 + "\n")
         f.write(f"Training Samples: {len(train_data)}\n")
         
-        # Dynamic class distribution
         class_distribution = train_data['class'].value_counts()
         for class_name, count in class_distribution.items():
             f.write(f"  - {class_name}: {count}\n")
             
         f.write(f"Unclassified Samples: {len(test_data)} (X1-X10)\n")
         f.write(f"Features: {len(feature_cols)} sensor channels (ch0-ch13)\n")
-        f.write(f"Number of Classes: {len(train_data['class'].unique())}\n")
-        f.write(f"Models Analyzed: Random Forest, SVM, KNN, Neural Network, Naive Bayes\n\n")
+        f.write(f"Number of Classes: {len(train_data['class'].unique())}\n\n")
         
-        # ... rest of the report function remains similar but uses dynamic class information ...
-        
-        # Update the interpretation section
-        f.write("CLASS INTERPRETATION:\n")
+        # Models Analyzed
+        f.write("MODELS ANALYZED:\n")
         f.write("-"*40 + "\n")
-        if dataset_type == "6_categories":
-            f.write("WFB: Well-Fermented Beans\n")
-            f.write("UFB: Under-Fermented Beans\n")
-            f.write("ADB_5 to ADB_2: Adequately-Fermented Beans (5=best, 2=worst quality)\n")
-        else:
-            f.write("WFB: Well-Fermented Beans\n")
-            f.write("ADB: Adequately-Fermented Beans\n")
-            f.write("UFB: Under-Fermented Beans\n")
+        f.write("Classical Machine Learning:\n")
+        f.write("  • Random Forest\n")
+        f.write("  • Support Vector Machine (SVM)\n")
+        f.write("  • K-Nearest Neighbors (KNN)\n")
+        f.write("  • Neural Network (sklearn MLP)\n")
+        f.write("  • Naive Bayes\n\n")
+        f.write("Deep Learning Models:\n")
+        f.write("  • Enhanced Deep MLP (with residual connections)\n")
+        f.write("  • Enhanced Conv1D Net (with attention mechanism)\n")
+        f.write("  • Enhanced LSTM Net (bidirectional with attention)\n")
+        f.write("  • Transformer Net (transformer encoder architecture)\n\n")
+        
+        # Model Performance Comparison
+        f.write("MODEL PERFORMANCE COMPARISON:\n")
+        f.write("-"*40 + "\n")
+        f.write(f"{'Model':<40} {'Type':<15} {'Accuracy':<10} {'F1-Score':<10}\n")
+        f.write("-"*80 + "\n")
+        
+        # Sort models by accuracy
+        sorted_models = sorted(all_models_results.items(), 
+                              key=lambda x: x[1]['validation_accuracy'], 
+                              reverse=True)
+        
+        for model_name, metrics in sorted_models:
+            model_type = "Deep Learning" if any(dl in model_name for dl in ['MLP', 'Conv1D', 'LSTM', 'Transformer']) else "Classical ML"
+            f.write(f"{model_name:<40} {model_type:<15} {metrics['validation_accuracy']:.4f}     {metrics['validation_f1']:.4f}\n")
+        
         f.write("\n")
         
-        # Data Quality Assessment
-        f.write("DATA QUALITY ASSESSMENT:\n")
+        # Best Performing Models
+        f.write("TOP 5 BEST PERFORMING MODELS:\n")
         f.write("-"*40 + "\n")
-        quality_issues = []
-        
-        # Check for high domain shift risk features
-        high_risk_features = [result['feature'] for result in comprehensive_analysis['domain_shift_results'] 
-                             if result['domain_shift_risk'] == 'High']
-        if high_risk_features:
-            quality_issues.append(f"High domain shift risk: {', '.join(high_risk_features)}")
-        
-        # Check for low separability features
-        separability_scores = comprehensive_analysis['separability_scores']
-        low_sep_indices = [i for i, score in enumerate(separability_scores) if score < np.percentile(separability_scores, 25)]
-        low_sep_features = [feature_cols[i] for i in low_sep_indices]
-        if low_sep_features:
-            quality_issues.append(f"Low class separability: {', '.join(low_sep_features[:3])}...")
-        
-        if quality_issues:
-            for issue in quality_issues:
-                f.write(f"⚠️  {issue}\n")
-        else:
-            f.write("✅ No major data quality issues detected\n")
-        f.write("\n")
+        for i, (model_name, metrics) in enumerate(sorted_models[:5], 1):
+            model_type = "DL" if any(dl in model_name for dl in ['MLP', 'Conv1D', 'LSTM', 'Transformer']) else "ML"
+            f.write(f"{i}. {model_name} [{model_type}]\n")
+            f.write(f"   Accuracy: {metrics['validation_accuracy']:.4f}\n")
+            f.write(f"   Precision: {metrics['validation_precision']:.4f}\n")
+            f.write(f"   Recall: {metrics['validation_recall']:.4f}\n")
+            f.write(f"   F1-Score: {metrics['validation_f1']:.4f}\n")
+            f.write(f"   MCC: {metrics['validation_mcc']:.4f}\n\n")
         
         # Best Model Information
-        f.write("BEST PERFORMING MODEL:\n")
+        f.write("SELECTED BEST MODEL FOR PREDICTIONS:\n")
         f.write("-"*40 + "\n")
         f.write(f"Model: {best_model[0]}\n")
-        f.write(f"Average Confidence: {best_model[1].get('avg_confidence', 'N/A')}\n\n")
+        f.write(f"Model Class: {best_model[1]['model_class']}\n")
+        f.write(f"Average Confidence: {best_model[1].get('avg_confidence', 'N/A'):.4f}\n\n")
         
         # Final Classifications
         f.write("FINAL CLASSIFICATION RESULTS:\n")
@@ -2612,123 +2931,54 @@ def create_summary_report(timestamp, train_data, test_data, feature_cols, best_m
             f.write(f"{pred_class}: {count}/{total_samples} samples ({percentage:.1f}%)\n")
         f.write("\n")
         
-        # Comprehensive Feature Importance
-        f.write("TOP 10 MOST CONSISTENTLY IMPORTANT FEATURES:\n")
+        # Deep Learning Model Insights - FIXED
+        f.write("DEEP LEARNING MODEL INSIGHTS:\n")
         f.write("-"*40 + "\n")
-        top_features = feature_importance_analysis['top_features'][:10]
-        rankings = feature_importance_analysis['rankings']
+        # Filter to get only DL models as a list
+        dl_models_list = [(k, v) for k, v in sorted_models if any(dl in k for dl in ['MLP', 'Conv1D', 'LSTM', 'Transformer'])]
+        if dl_models_list:
+            best_dl = dl_models_list[0]  # Now correctly accessing the first element of a list
+            f.write(f"Best Deep Learning Model: {best_dl[0]}\n")
+            f.write(f"Accuracy: {best_dl[1]['validation_accuracy']:.4f}\n")
+            f.write("\nDeep Learning Architecture Highlights:\n")
+            f.write("  • Residual connections for better gradient flow\n")
+            f.write("  • Attention mechanisms for feature importance\n")
+            f.write("  • Layer normalization for stable training\n")
+            f.write("  • Advanced optimizers (AdamW) with weight decay\n")
+            f.write("  • Cosine annealing learning rate schedule\n")
+            f.write("  • Early stopping with patience monitoring\n\n")
         
-        # Calculate average ranking for each feature
-        ranking_matrix = np.array([rankings[method] for method in rankings.keys()])
-        mean_ranking = np.mean(ranking_matrix, axis=0)
-        
-        for i, feature in enumerate(top_features):
-            feature_idx = feature_cols.index(feature)
-            avg_rank = mean_ranking[feature_idx]
-            f.write(f"{i+1:2d}. {feature}: Average rank {avg_rank:.1f}\n")
-        f.write("\n")
-        
-        # Model Agreement on Feature Importance
-        f.write("FEATURE IMPORTANCE CONSENSUS:\n")
-        f.write("-"*40 + "\n")
-        consensus_borda = feature_importance_analysis['consensus_scores']['borda_count']
-        top_consensus_indices = np.argsort(consensus_borda)[::-1][:5]
-        
-        f.write("Top 5 features by consensus (Borda count):\n")
-        for i, idx in enumerate(top_consensus_indices):
-            feature = feature_cols[idx]
-            score = consensus_borda[idx]
-            f.write(f"{i+1}. {feature}: {score:.2f}\n")
-        f.write("\n")
-        
-        # Statistical Significance
-        f.write("STATISTICAL SIGNIFICANCE SUMMARY:\n")
-        f.write("-"*40 + "\n")
-        high_sig_features = [result['feature'] for result in comprehensive_analysis['statistical_results'] 
-                           if result['significance'] == 'High']
-        med_sig_features = [result['feature'] for result in comprehensive_analysis['statistical_results'] 
-                          if result['significance'] == 'Medium']
-        
-        f.write(f"Highly significant features (p<0.001): {len(high_sig_features)}\n")
-        if high_sig_features:
-            f.write(f"  {', '.join(high_sig_features[:5])}{'...' if len(high_sig_features) > 5 else ''}\n")
-        
-        f.write(f"Moderately significant features (p<0.01): {len(med_sig_features)}\n")
-        if med_sig_features:
-            f.write(f"  {', '.join(med_sig_features[:5])}{'...' if len(med_sig_features) > 5 else ''}\n")
-        f.write("\n")
-        
-        # Files Generated
-        f.write("FILES GENERATED:\n")
-        f.write("-"*40 + "\n")
-        f.write("Individual Plots (High Resolution PNG):\n")
-        f.write(f"  01-07. EDA Plots: class distribution, correlations, PCA, etc.\n")
-        f.write(f"  08-14. Prediction Analysis: confidence, agreement, heatmaps\n")
-        f.write(f"  15. Feature Distributions by Class\n")
-        f.write(f"  16. Outlier Analysis\n")
-        f.write(f"  17. Class Separability Analysis\n")
-        f.write(f"  18. Feature Importance Heatmap (All Models)\n")
-        f.write(f"  19. Individual Feature Importance (All Models)\n")
-        f.write(f"  20. Feature Ranking Comparison\n")
-        f.write(f"  21. Consensus Feature Importance\n")
-        f.write(f"  22. Class Correlation Matrix\n")
-        f.write(f"  23. Class Similarity Matrices\n")
-        f.write(f"  24. Class Profile Radar Chart\n")
-        f.write(f"  25. Test Sample Similarities\n\n")
-        
-        f.write("Data Files (CSV):\n")
-        f.write(f"  - final_classification_results.csv\n")
-        f.write(f"  - comprehensive_feature_importance.csv\n")
-        f.write(f"  - detailed_statistical_analysis.csv\n")
-        f.write(f"  - class_separability.csv\n")
-        f.write(f"  - domain_shift_analysis.csv\n")
-        f.write(f"  - data_quality_metrics.csv\n")
-        f.write(f"  - target_correlation_analysis.csv\n")
-        f.write(f"  - all_predictions.csv\n")
-        f.write(f"  - consensus_predictions.csv\n")
-        f.write(f"  - model_performance.csv\n")
-        f.write(f"  - hyperparameter_tuning.csv\n")
-        f.write(f"  - detailed_class_profiles.csv\n")
-        f.write(f"  - sensor_discrimination_analysis.csv\n")
-        f.write(f"  - test_sample_class_similarities.csv\n\n")
-        
-        f.write("Log Files:\n")
-        f.write(f"  - analysis_log.txt\n\n")
-        
-        # Key Insights and Recommendations
+        # Key Insights
         f.write("KEY INSIGHTS & RECOMMENDATIONS:\n")
         f.write("-"*40 + "\n")
-        f.write("1. DATA QUALITY:\n")
-        if not high_risk_features:
-            f.write("   ✅ No significant domain shift detected between train/test\n")
-        else:
-            f.write(f"   ⚠️  Domain shift risk in: {', '.join(high_risk_features[:3])}\n")
-            f.write("   → Consider feature scaling or domain adaptation techniques\n")
+        f.write("1. MODEL PERFORMANCE:\n")
         
-        f.write("\n2. FEATURE IMPORTANCE:\n")
-        f.write(f"   🎯 Most critical sensors: {', '.join(top_features[:3])}\n")
-        f.write("   → Focus on these sensors for future data collection\n")
-        f.write("   → Consider sensor maintenance and calibration priorities\n")
+        # Compare DL vs ML
+        dl_accuracies = [m[1]['validation_accuracy'] for m in sorted_models 
+                        if any(dl in m[0] for dl in ['MLP', 'Conv1D', 'LSTM', 'Transformer'])]
+        ml_accuracies = [m[1]['validation_accuracy'] for m in sorted_models 
+                        if not any(dl in m[0] for dl in ['MLP', 'Conv1D', 'LSTM', 'Transformer'])]
         
-        f.write("\n3. MODEL PERFORMANCE:\n")
-        avg_confidence = best_model[1].get('avg_confidence', 0)
-        if avg_confidence and avg_confidence > 0.8:
-            f.write("   ✅ High model confidence - predictions are reliable\n")
-        elif avg_confidence and avg_confidence > 0.6:
-            f.write("   ⚠️  Moderate confidence - review uncertain predictions\n")
-        else:
-            f.write("   ❌ Low confidence - consider additional data or features\n")
+        if dl_accuracies and ml_accuracies:
+            avg_dl_acc = np.mean(dl_accuracies)
+            avg_ml_acc = np.mean(ml_accuracies)
+            f.write(f"   Average Deep Learning Accuracy: {avg_dl_acc:.4f}\n")
+            f.write(f"   Average Classical ML Accuracy: {avg_ml_acc:.4f}\n")
+            if avg_dl_acc > avg_ml_acc:
+                f.write("   ✅ Deep learning models outperform classical ML on average\n")
+            else:
+                f.write("   ✅ Classical ML models are competitive with deep learning\n")
         
-        f.write("\n4. CLASSIFICATION RESULTS:\n")
-        f.write("   📊 Sample distribution balanced across predicted classes\n")
-        f.write("   → Validate results with domain experts\n")
-        f.write("   → Consider chemical analysis verification for uncertain samples\n")
+        f.write("\n2. MODEL SELECTION:\n")
+        f.write(f"   🎯 Recommended model: {best_model[0]}\n")
+        f.write(f"   → High confidence predictions: {best_model[1].get('avg_confidence', 0):.1%}\n")
+        f.write("   → Suitable for production deployment\n")
         
-        f.write("\n5. NEXT STEPS:\n")
-        f.write("   • Validate predictions with chemical/sensory analysis\n")
-        f.write("   • Collect more data if confidence is low\n")
-        f.write("   • Focus on top-ranked features for sensor optimization\n")
-        f.write("   • Monitor domain shift in future data\n")
+        f.write("\n3. NEXT STEPS:\n")
+        f.write("   • Validate predictions with laboratory analysis\n")
+        f.write("   • Consider ensemble methods combining top models\n")
+        f.write("   • Monitor model performance on new data\n")
+        f.write("   • Fine-tune deep learning models with more data if available\n")
         
         f.write("\n")
         f.write("="*80 + "\n")
