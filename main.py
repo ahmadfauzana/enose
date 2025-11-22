@@ -366,18 +366,18 @@ def load_and_preprocess_data():
     print("Loading and preprocessing data...")
     
     # Try to load from 6_categories first, fall back to 3_categories if not available
+    # try:
+    #     train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='6_categories')
+    #     print("✅ Loaded training data from '6_categories' sheet")
+    #     dataset_type = "6_categories"
+    # except:
     try:
-        train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='6_categories')
-        print("✅ Loaded training data from '6_categories' sheet")
-        dataset_type = "6_categories"
-    except:
-        try:
-            train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='3_categories (2)')
-            print("✅ Loaded training data from '3_categories (2)' sheet")
-            dataset_type = "3_categories"
-        except Exception as e:
-            print(f"❌ Error loading training data: {e}")
-            return None, None, None
+        train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='3_categories (2)')
+        print("✅ Loaded training data from '3_categories (2)' sheet")
+        dataset_type = "3_categories"
+    except Exception as e:
+        print(f"❌ Error loading training data: {e}")
+        return None, None, None
     
     # Load testing data
     try:

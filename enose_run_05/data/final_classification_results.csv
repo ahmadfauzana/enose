@@ -1,0 +1,11 @@
+Sample_ID,Predicted_Class,Confidence,Model_Used,Model_Class
+X1,UFB,1.0,Naive Bayes (Tuned),Classical ML
+X2,UFB,1.0,Naive Bayes (Tuned),Classical ML
+X3,UFB,1.0,Naive Bayes (Tuned),Classical ML
+X4,UFB,1.0,Naive Bayes (Tuned),Classical ML
+X5,UFB,1.0,Naive Bayes (Tuned),Classical ML
+X6,WFB,0.9999997720077058,Naive Bayes (Tuned),Classical ML
+X7,WFB,0.9999999786321612,Naive Bayes (Tuned),Classical ML
+X8,WFB,0.9999998976093031,Naive Bayes (Tuned),Classical ML
+X9,ADB,0.9999999999651763,Naive Bayes (Tuned),Classical ML
+X10,ADB,0.9943049053077615,Naive Bayes (Tuned),Classical ML

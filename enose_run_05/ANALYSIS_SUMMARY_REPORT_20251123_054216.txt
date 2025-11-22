@@ -1,0 +1,145 @@
+================================================================================
+E-NOSE COCOA BEAN CLASSIFICATION - COMPREHENSIVE ANALYSIS REPORT
+WITH ENHANCED DEEP LEARNING MODELS
+================================================================================
+Analysis Date: 2025-11-23 05:48:57
+Timestamp: 20251123_054216
+Dataset Type: 3_categories
+================================================================================
+
+DATASET OVERVIEW:
+----------------------------------------
+Training Samples: 280
+  - ADB: 160
+  - WFB: 80
+  - UFB: 40
+Unclassified Samples: 10 (X1-X10)
+Features: 14 sensor channels (ch0-ch13)
+Number of Classes: 3
+
+MODELS ANALYZED:
+----------------------------------------
+Classical Machine Learning:
+  • Random Forest
+  • Support Vector Machine (SVM)
+  • K-Nearest Neighbors (KNN)
+  • Neural Network (sklearn MLP)
+  • Naive Bayes
+
+Deep Learning Models:
+  • Enhanced Deep MLP (with residual connections)
+  • Enhanced Conv1D Net (with attention mechanism)
+  • Enhanced LSTM Net (bidirectional with attention)
+  • Transformer Net (transformer encoder architecture)
+
+MODEL PERFORMANCE COMPARISON:
+----------------------------------------
+Model                                    Type            Accuracy   F1-Score  
+--------------------------------------------------------------------------------
+Neural Network (sklearn-MLP)             Deep Learning   0.9524     0.9526
+Enhanced LSTM Net                        Deep Learning   0.9405     0.9404
+Enhanced Conv1D Net                      Deep Learning   0.8690     0.8659
+Random Forest                            Classical ML    0.8452     0.8396
+Support Vector Machine                   Classical ML    0.8333     0.8193
+Transformer Net                          Deep Learning   0.8214     0.8207
+K-Nearest Neighbors                      Classical ML    0.7976     0.7863
+Enhanced Deep MLP                        Deep Learning   0.7738     0.7729
+Naive Bayes                              Classical ML    0.6786     0.6846
+
+TOP 5 BEST PERFORMING MODELS:
+----------------------------------------
+1. Neural Network (sklearn-MLP) [DL]
+   Accuracy: 0.9524
+   Precision: 0.9573
+   Recall: 0.9524
+   F1-Score: 0.9526
+   MCC: 0.9220
+
+2. Enhanced LSTM Net [DL]
+   Accuracy: 0.9405
+   Precision: 0.9407
+   Recall: 0.9405
+   F1-Score: 0.9404
+   MCC: 0.8955
+
+3. Enhanced Conv1D Net [DL]
+   Accuracy: 0.8690
+   Precision: 0.8710
+   Recall: 0.8690
+   F1-Score: 0.8659
+   MCC: 0.7703
+
+4. Random Forest [ML]
+   Accuracy: 0.8452
+   Precision: 0.8561
+   Recall: 0.8452
+   F1-Score: 0.8396
+   MCC: 0.7273
+
+5. Support Vector Machine [ML]
+   Accuracy: 0.8333
+   Precision: 0.8542
+   Recall: 0.8333
+   F1-Score: 0.8193
+   MCC: 0.7154
+
+SELECTED BEST MODEL FOR PREDICTIONS:
+----------------------------------------
+Model: Naive Bayes (Tuned)
+Model Class: Classical ML
+Average Confidence: 0.9994
+
+FINAL CLASSIFICATION RESULTS:
+----------------------------------------
+Sample_ID Predicted_Class  Confidence          Model_Used  Model_Class
+       X1             UFB    1.000000 Naive Bayes (Tuned) Classical ML
+       X2             UFB    1.000000 Naive Bayes (Tuned) Classical ML
+       X3             UFB    1.000000 Naive Bayes (Tuned) Classical ML
+       X4             UFB    1.000000 Naive Bayes (Tuned) Classical ML
+       X5             UFB    1.000000 Naive Bayes (Tuned) Classical ML
+       X6             WFB    1.000000 Naive Bayes (Tuned) Classical ML
+       X7             WFB    1.000000 Naive Bayes (Tuned) Classical ML
+       X8             WFB    1.000000 Naive Bayes (Tuned) Classical ML
+       X9             ADB    1.000000 Naive Bayes (Tuned) Classical ML
+      X10             ADB    0.994305 Naive Bayes (Tuned) Classical ML
+
+PREDICTION DISTRIBUTION:
+----------------------------------------
+ADB: 2/10 samples (20.0%)
+UFB: 5/10 samples (50.0%)
+WFB: 3/10 samples (30.0%)
+
+DEEP LEARNING MODEL INSIGHTS:
+----------------------------------------
+Best Deep Learning Model: Neural Network (sklearn-MLP)
+Accuracy: 0.9524
+
+Deep Learning Architecture Highlights:
+  • Residual connections for better gradient flow
+  • Attention mechanisms for feature importance
+  • Layer normalization for stable training
+  • Advanced optimizers (AdamW) with weight decay
+  • Cosine annealing learning rate schedule
+  • Early stopping with patience monitoring
+
+KEY INSIGHTS & RECOMMENDATIONS:
+----------------------------------------
+1. MODEL PERFORMANCE:
+   Average Deep Learning Accuracy: 0.8714
+   Average Classical ML Accuracy: 0.7887
+   ✅ Deep learning models outperform classical ML on average
+
+2. MODEL SELECTION:
+   🎯 Recommended model: Naive Bayes (Tuned)
+   → High confidence predictions: 99.9%
+   → Suitable for production deployment
+
+3. NEXT STEPS:
+   • Validate predictions with laboratory analysis
+   • Consider ensemble methods combining top models
+   • Monitor model performance on new data
+   • Fine-tune deep learning models with more data if available
+
+================================================================================
+END OF COMPREHENSIVE REPORT
+================================================================================

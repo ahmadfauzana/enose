@@ -1,0 +1,11 @@
+sample_id,consensus_prediction,agreement_level,agreement_count,total_models
+X1,UFB,10/14 models,10,14
+X2,UFB,10/14 models,10,14
+X3,UFB,10/14 models,10,14
+X4,UFB,10/14 models,10,14
+X5,UFB,10/14 models,10,14
+X6,WFB,10/14 models,10,14
+X7,WFB,10/14 models,10,14
+X8,WFB,10/14 models,10,14
+X9,ADB,8/14 models,8,14
+X10,ADB,9/14 models,9,14
