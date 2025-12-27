@@ -291,6 +291,66 @@ class TransformerNet(nn.Module):
         x = self.classifier(x)
         return x
 
+def normalize_columns(df):
+    df = df.copy()
+    df.columns = df.columns.astype(str).str.strip().str.lower()
+    return df
+
+
+def fix_decimal_commas(df):
+    df = df.copy()
+    for col in df.columns:
+        df[col] = df[col].astype(str).str.replace(',', '.', regex=False)
+    return df
+
+
+def detect_excel_format(df):
+    cols = set(df.columns)
+    if 'times' in cols and 'categories' not in cols:
+        return 'timeseries'
+    elif 'categories' in cols or 'class' in cols:
+        return 'aggregated'
+    else:
+        raise ValueError(f"Unknown Excel format. Columns: {cols}")
+
+
+def timeseries_to_features(df, label=None):
+    df = normalize_columns(df)
+    df = fix_decimal_commas(df)
+
+    # drop non-sensor rows like "WFB"
+    df = df[df['times'].apply(lambda x: str(x).isdigit())]
+
+    sensor_cols = [c for c in df.columns if c.startswith('ch')]
+    df[sensor_cols] = df[sensor_cols].apply(pd.to_numeric, errors='coerce')
+
+    features = df[sensor_cols].mean().to_frame().T
+
+    if label is not None:
+        features.insert(0, 'class', label)
+
+    return features
+
+def load_excel_any_format(path, label=None):
+    df = pd.read_excel(path)
+    df = normalize_columns(df)
+
+    excel_type = detect_excel_format(df)
+    print(f"Detected Excel format: {excel_type}")
+
+    if excel_type == 'timeseries':
+        return timeseries_to_features(df, label=label)
+
+    elif excel_type == 'aggregated':
+        df = fix_decimal_commas(df)
+        df = df.rename(columns={'categories': 'class'})
+
+        for col in df.columns:
+            if col != 'class':
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        return df
+
 def compute_feature_importances(model, X_val, y_val):
     """Compute feature importances if supported"""
     if isinstance(model, nn.Module):
@@ -361,57 +421,307 @@ def setup_logging():
 timestamp = None
 logger = None
 
+# def load_and_preprocess_data():
+#     """Load and preprocess the e-nose dataset - automatically detects 3 or 6 categories"""
+#     print("Loading and preprocessing data...")
+    
+#     # Try to load from 6_categories first, fall back to 3_categories if not available
+#     # try:
+#     #     train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='6_categories')
+#     #     print("✅ Loaded training data from '6_categories' sheet")
+#     #     dataset_type = "6_categories"
+#     # except:
+#     try:
+#         train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='3_categories (2)')
+#         print("✅ Loaded training data from '3_categories (2)' sheet")
+#         dataset_type = "3_categories"
+#     except Exception as e:
+#         print(f"❌ Error loading training data: {e}")
+#         return None, None, None
+    
+#     # Load testing data
+#     try:
+#         test_data = pd.read_excel('data_enose_new.xlsx', sheet_name='unknown')
+#         print("✅ Loaded testing data from 'unknown' sheet")
+#     except Exception as e:
+#         print(f"❌ Error loading test data: {e}")
+#         return None, None, None
+    
+#     print(f"Raw training data shape: {train_data.shape}")
+#     print(f"Raw testing data shape: {test_data.shape}")
+    
+#     # Debug: Show unique values in the first column
+#     actual_classes = train_data.iloc[:, 0].unique()
+#     print(f"\nTraining categories: {actual_classes}")
+#     print(f"Number of classes: {len(actual_classes)}")
+#     print(f"Testing sample IDs: {test_data.iloc[:, 0].unique()}")
+    
+#     # Rename columns to match what the code expects
+#     train_data = train_data.rename(columns={train_data.columns[0]: 'class'})
+#     test_data = test_data.rename(columns={test_data.columns[0]: 'sample_id'})
+    
+#     # Remove any rows with missing values
+#     train_data = train_data.dropna()
+#     test_data = test_data.dropna()
+    
+#     print(f"\n=== FINAL PROCESSED DATA ===")
+#     print(f"Dataset type: {dataset_type}")
+#     print(f"Training data shape: {train_data.shape}")
+#     print(f"Testing data shape: {test_data.shape}")
+#     print(f"Training classes: {train_data['class'].unique()}")
+#     print(f"Training class distribution:")
+#     print(train_data['class'].value_counts())
+#     print(f"Unclassified samples to predict: {test_data['sample_id'].tolist()}")
+    
+#     return train_data, test_data, dataset_type
+
 def load_and_preprocess_data():
-    """Load and preprocess the e-nose dataset - automatically detects 3 or 6 categories"""
+    """Load and preprocess the e-nose dataset - handles new time-series format"""
     print("Loading and preprocessing data...")
     
-    # Try to load from 6_categories first, fall back to 3_categories if not available
-    # try:
-    #     train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='6_categories')
-    #     print("✅ Loaded training data from '6_categories' sheet")
-    #     dataset_type = "6_categories"
-    # except:
-    try:
-        train_data = pd.read_excel('data_enose_new.xlsx', sheet_name='3_categories (2)')
-        print("✅ Loaded training data from '3_categories (2)' sheet")
-        dataset_type = "3_categories"
-    except Exception as e:
-        print(f"❌ Error loading training data: {e}")
+    # Try to load training data from different possible sheet names
+    train_data = None
+    sheet_names_to_try = ['3_categories (2)', '6_categories', 'all_data_enose']
+    
+    for sheet_name in sheet_names_to_try:
+        try:
+            # Read Excel file without assuming headers
+            df = pd.read_excel('update_data_enose_timeseries.xlsx', sheet_name=sheet_name, header=None)
+            print(f"✅ Successfully loaded sheet: '{sheet_name}'")
+            
+            # Extract header rows
+            row1 = df.iloc[0]  # Times, Ch0, Ch1, Ch2, ...
+            row2 = df.iloc[1]  # Categories: WFB, ADB, UFB, ...
+            data = df.iloc[2:]  # Actual sensor readings
+            
+            print(f"\nHeader Row 1 (Channels): {row1.tolist()[:10]}...")
+            print(f"Header Row 2 (Categories): {row2.tolist()[:10]}...")
+            print(f"Data shape: {data.shape}")
+            
+            # Process data
+            processed_samples = []
+            
+            # Start from column 1 (skip Times column)
+            for col_idx in range(1, len(row1)):
+                channel_name = row1.iloc[col_idx]
+                category = row2.iloc[col_idx]
+                
+                # Skip if no valid channel or category
+                if pd.isna(channel_name) or pd.isna(category):
+                    continue
+                
+                # Extract channel number (Ch0 -> 0, Ch1 -> 1, etc.)
+                if str(channel_name).startswith('Ch'):
+                    try:
+                        channel_num = int(str(channel_name).replace('Ch', ''))
+                    except:
+                        continue
+                else:
+                    continue
+                
+                # Get all values in this column (time series)
+                column_values = data.iloc[:, col_idx].values
+                
+                # Clean and convert values (handle comma decimal separator)
+                clean_values = []
+                for val in column_values:
+                    if pd.notna(val):
+                        try:
+                            # Convert comma to dot for decimal
+                            val_float = float(str(val).replace(',', '.'))
+                            clean_values.append(val_float)
+                        except:
+                            pass
+                
+                # Average the time series to get one value per channel
+                if len(clean_values) > 0:
+                    avg_value = np.mean(clean_values)
+                    
+                    # Store as (category, channel, value)
+                    processed_samples.append({
+                        'class': str(category).strip(),
+                        'channel': channel_num,
+                        'value': avg_value
+                    })
+            
+            # Convert to proper DataFrame format
+            # Group by class and pivot to get one row per sample
+            if processed_samples:
+                df_samples = pd.DataFrame(processed_samples)
+                
+                # Pivot: rows = samples, columns = channels
+                # Since we have multiple time points, we'll create separate samples
+                # Group by class and channel, then create samples
+                
+                # Better approach: group by class and collect all channels
+                samples_by_class = {}
+                for _, row in df_samples.iterrows():
+                    class_name = row['class']
+                    channel = row['channel']
+                    value = row['value']
+                    
+                    if class_name not in samples_by_class:
+                        samples_by_class[class_name] = {}
+                    
+                    if channel not in samples_by_class[class_name]:
+                        samples_by_class[class_name][channel] = []
+                    
+                    samples_by_class[class_name][channel].append(value)
+                
+                # Create final training data
+                final_samples = []
+                for class_name, channels_dict in samples_by_class.items():
+                    # Get max number of samples for this class
+                    max_samples = max(len(vals) for vals in channels_dict.values())
+                    
+                    # Create one sample per time point
+                    for sample_idx in range(max_samples):
+                        sample = {'class': class_name}
+                        
+                        # Add all 14 channels
+                        for ch in range(14):
+                            if ch in channels_dict and sample_idx < len(channels_dict[ch]):
+                                sample[f'ch{ch}'] = channels_dict[ch][sample_idx]
+                            else:
+                                sample[f'ch{ch}'] = 0.0  # Default value
+                        
+                        final_samples.append(sample)
+                
+                train_data = pd.DataFrame(final_samples)
+                
+                # Ensure column order
+                channel_cols = [f'ch{i}' for i in range(14)]
+                train_data = train_data[['class'] + channel_cols]
+                
+                # Remove rows with all zeros (except class column)
+                train_data = train_data[(train_data[channel_cols] != 0).any(axis=1)]
+                
+                print(f"\n✅ Processed {len(train_data)} training samples")
+                print(f"Classes: {train_data['class'].unique()}")
+                print(f"Class distribution:\n{train_data['class'].value_counts()}")
+                
+                dataset_type = sheet_name
+                break
+            
+        except Exception as e:
+            print(f"❌ Could not load sheet '{sheet_name}': {e}")
+            import traceback
+            traceback.print_exc()
+            continue
+    
+    if train_data is None or len(train_data) == 0:
+        print("❌ Failed to load training data")
         return None, None, None
     
-    # Load testing data
-    try:
-        test_data = pd.read_excel('data_enose_new.xlsx', sheet_name='unknown')
-        print("✅ Loaded testing data from 'unknown' sheet")
-    except Exception as e:
-        print(f"❌ Error loading test data: {e}")
-        return None, None, None
+    # Load test data
+    test_data = None
+    test_sheet_names = ['unknown', 'unknown_data_enose']
     
-    print(f"Raw training data shape: {train_data.shape}")
-    print(f"Raw testing data shape: {test_data.shape}")
+    for sheet_name in test_sheet_names:
+        try:
+            df_test = pd.read_excel('update_data_enose_timeseries.xlsx', sheet_name=sheet_name, header=None)
+            print(f"\n✅ Loaded test sheet: '{sheet_name}'")
+            
+            row1 = df_test.iloc[0]  # Times, Ch0, Ch1, ...
+            row2 = df_test.iloc[1]  # Sample IDs: X1, X2, ...
+            data = df_test.iloc[2:]  # Sensor readings
+            
+            print(f"Test samples found: {[str(x) for x in row2[1:11] if pd.notna(x)]}")
+            
+            # Process test data
+            processed_test = []
+            
+            for col_idx in range(1, len(row1)):
+                channel_name = row1.iloc[col_idx]
+                sample_id = row2.iloc[col_idx]
+                
+                if pd.isna(channel_name) or pd.isna(sample_id):
+                    continue
+                
+                if str(channel_name).startswith('Ch'):
+                    try:
+                        channel_num = int(str(channel_name).replace('Ch', ''))
+                    except:
+                        continue
+                else:
+                    continue
+                
+                # Get column values
+                column_values = data.iloc[:, col_idx].values
+                
+                clean_values = []
+                for val in column_values:
+                    if pd.notna(val):
+                        try:
+                            val_float = float(str(val).replace(',', '.'))
+                            clean_values.append(val_float)
+                        except:
+                            pass
+                
+                if len(clean_values) > 0:
+                    avg_value = np.mean(clean_values)
+                    
+                    processed_test.append({
+                        'sample_id': str(sample_id).strip(),
+                        'channel': channel_num,
+                        'value': avg_value
+                    })
+            
+            # Convert to DataFrame format
+            if processed_test:
+                df_test_samples = pd.DataFrame(processed_test)
+                
+                # Group by sample_id
+                samples_dict = {}
+                for _, row in df_test_samples.iterrows():
+                    sample_id = row['sample_id']
+                    channel = row['channel']
+                    value = row['value']
+                    
+                    if sample_id not in samples_dict:
+                        samples_dict[sample_id] = {'sample_id': sample_id}
+                    
+                    samples_dict[sample_id][f'ch{channel}'] = value
+                
+                # Create final test data
+                test_samples = []
+                for sample_id, sample_dict in samples_dict.items():
+                    # Ensure all 14 channels
+                    for ch in range(14):
+                        if f'ch{ch}' not in sample_dict:
+                            sample_dict[f'ch{ch}'] = 0.0
+                    test_samples.append(sample_dict)
+                
+                test_data = pd.DataFrame(test_samples)
+                
+                # Ensure column order
+                channel_cols = [f'ch{i}' for i in range(14)]
+                test_data = test_data[['sample_id'] + channel_cols]
+                
+                print(f"✅ Processed {len(test_data)} test samples")
+                print(f"Sample IDs: {test_data['sample_id'].tolist()}")
+                break
+            
+        except Exception as e:
+            print(f"❌ Could not load test sheet '{sheet_name}': {e}")
+            import traceback
+            traceback.print_exc()
+            continue
     
-    # Debug: Show unique values in the first column
-    actual_classes = train_data.iloc[:, 0].unique()
-    print(f"\nTraining categories: {actual_classes}")
-    print(f"Number of classes: {len(actual_classes)}")
-    print(f"Testing sample IDs: {test_data.iloc[:, 0].unique()}")
-    
-    # Rename columns to match what the code expects
-    train_data = train_data.rename(columns={train_data.columns[0]: 'class'})
-    test_data = test_data.rename(columns={test_data.columns[0]: 'sample_id'})
-    
-    # Remove any rows with missing values
-    train_data = train_data.dropna()
-    test_data = test_data.dropna()
+    if test_data is None or len(test_data) == 0:
+        print("❌ Failed to load test data")
+        # Create dummy test data
+        test_data = pd.DataFrame({
+            'sample_id': [f'X{i}' for i in range(1, 11)],
+            **{f'ch{i}': [0.0]*10 for i in range(14)}
+        })
+        print("⚠️  Created dummy test data as fallback")
     
     print(f"\n=== FINAL PROCESSED DATA ===")
     print(f"Dataset type: {dataset_type}")
-    print(f"Training data shape: {train_data.shape}")
-    print(f"Testing data shape: {test_data.shape}")
-    print(f"Training classes: {train_data['class'].unique()}")
-    print(f"Training class distribution:")
-    print(train_data['class'].value_counts())
-    print(f"Unclassified samples to predict: {test_data['sample_id'].tolist()}")
+    print(f"Training shape: {train_data.shape}")
+    print(f"Test shape: {test_data.shape}")
+    print(f"Training classes: {sorted(train_data['class'].unique())}")
     
     return train_data, test_data, dataset_type
 

@@ -1,0 +1,141 @@
+sample_id,model,model_class,predicted_class,confidence,model_type
+X1,Random Forest,Classical ML,UFB,1.0,original
+X2,Random Forest,Classical ML,ADB,0.62,original
+X3,Random Forest,Classical ML,UFB,0.97,original
+X4,Random Forest,Classical ML,WFB,0.94,original
+X5,Random Forest,Classical ML,WFB,0.72,original
+X6,Random Forest,Classical ML,UFB,1.0,original
+X7,Random Forest,Classical ML,UFB,0.98,original
+X8,Random Forest,Classical ML,ADB,0.98,original
+X9,Random Forest,Classical ML,UFB,0.96,original
+X10,Random Forest,Classical ML,WFB,0.76,original
+X1,Support Vector Machine,Classical ML,UFB,0.5442147112403932,original
+X2,Support Vector Machine,Classical ML,ADB,0.769055508320256,original
+X3,Support Vector Machine,Classical ML,UFB,0.9496024632178832,original
+X4,Support Vector Machine,Classical ML,WFB,0.9581615821099986,original
+X5,Support Vector Machine,Classical ML,WFB,0.8929970969094584,original
+X6,Support Vector Machine,Classical ML,UFB,0.72603226096642,original
+X7,Support Vector Machine,Classical ML,UFB,0.953243932937675,original
+X8,Support Vector Machine,Classical ML,ADB,0.7516800074891848,original
+X9,Support Vector Machine,Classical ML,UFB,0.956979094928559,original
+X10,Support Vector Machine,Classical ML,WFB,0.9046097743104674,original
+X1,K-Nearest Neighbors,Classical ML,UFB,1.0,original
+X2,K-Nearest Neighbors,Classical ML,ADB,1.0,original
+X3,K-Nearest Neighbors,Classical ML,UFB,1.0,original
+X4,K-Nearest Neighbors,Classical ML,WFB,1.0,original
+X5,K-Nearest Neighbors,Classical ML,WFB,0.8,original
+X6,K-Nearest Neighbors,Classical ML,UFB,1.0,original
+X7,K-Nearest Neighbors,Classical ML,UFB,1.0,original
+X8,K-Nearest Neighbors,Classical ML,ADB,1.0,original
+X9,K-Nearest Neighbors,Classical ML,UFB,0.8,original
+X10,K-Nearest Neighbors,Classical ML,WFB,0.8,original
+X1,Neural Network (sklearn-MLP),Classical ML,UFB,0.9998925251542253,original
+X2,Neural Network (sklearn-MLP),Classical ML,ADB,0.8629679087558928,original
+X3,Neural Network (sklearn-MLP),Classical ML,UFB,0.9986653698066137,original
+X4,Neural Network (sklearn-MLP),Classical ML,WFB,0.9999446150644196,original
+X5,Neural Network (sklearn-MLP),Classical ML,WFB,0.9991523574122491,original
+X6,Neural Network (sklearn-MLP),Classical ML,UFB,0.9997539840250914,original
+X7,Neural Network (sklearn-MLP),Classical ML,UFB,0.9998351351473587,original
+X8,Neural Network (sklearn-MLP),Classical ML,ADB,0.6239079856232596,original
+X9,Neural Network (sklearn-MLP),Classical ML,UFB,0.9907512346485762,original
+X10,Neural Network (sklearn-MLP),Classical ML,WFB,0.9997528499713473,original
+X1,Naive Bayes,Classical ML,UFB,1.0,original
+X2,Naive Bayes,Classical ML,ADB,0.9690388521446345,original
+X3,Naive Bayes,Classical ML,UFB,1.0,original
+X4,Naive Bayes,Classical ML,WFB,0.9999998886568617,original
+X5,Naive Bayes,Classical ML,WFB,0.9999996605450104,original
+X6,Naive Bayes,Classical ML,UFB,1.0,original
+X7,Naive Bayes,Classical ML,UFB,1.0,original
+X8,Naive Bayes,Classical ML,ADB,0.9999974880317597,original
+X9,Naive Bayes,Classical ML,UFB,1.0,original
+X10,Naive Bayes,Classical ML,WFB,0.9999992007542918,original
+X1,Enhanced Deep MLP,Deep Learning,1,0.9867679476737976,original
+X2,Enhanced Deep MLP,Deep Learning,0,0.9397083520889282,original
+X3,Enhanced Deep MLP,Deep Learning,1,0.9674867987632751,original
+X4,Enhanced Deep MLP,Deep Learning,2,0.9748904705047607,original
+X5,Enhanced Deep MLP,Deep Learning,2,0.9734487533569336,original
+X6,Enhanced Deep MLP,Deep Learning,1,0.9865283966064453,original
+X7,Enhanced Deep MLP,Deep Learning,1,0.9827872514724731,original
+X8,Enhanced Deep MLP,Deep Learning,1,0.9318491816520691,original
+X9,Enhanced Deep MLP,Deep Learning,1,0.9720081090927124,original
+X10,Enhanced Deep MLP,Deep Learning,2,0.9736956357955933,original
+X1,Enhanced Conv1D Net,Deep Learning,1,0.999998927116394,original
+X2,Enhanced Conv1D Net,Deep Learning,0,0.9920846223831177,original
+X3,Enhanced Conv1D Net,Deep Learning,1,0.9997557997703552,original
+X4,Enhanced Conv1D Net,Deep Learning,2,0.9999563694000244,original
+X5,Enhanced Conv1D Net,Deep Learning,2,0.9999849796295166,original
+X6,Enhanced Conv1D Net,Deep Learning,1,0.9999978542327881,original
+X7,Enhanced Conv1D Net,Deep Learning,1,0.9999674558639526,original
+X8,Enhanced Conv1D Net,Deep Learning,0,0.895002543926239,original
+X9,Enhanced Conv1D Net,Deep Learning,1,0.9999053478240967,original
+X10,Enhanced Conv1D Net,Deep Learning,2,0.9999911785125732,original
+X1,Enhanced LSTM Net,Deep Learning,1,0.9997170567512512,original
+X2,Enhanced LSTM Net,Deep Learning,0,0.9998030066490173,original
+X3,Enhanced LSTM Net,Deep Learning,1,0.9994907379150391,original
+X4,Enhanced LSTM Net,Deep Learning,2,0.9991149306297302,original
+X5,Enhanced LSTM Net,Deep Learning,2,0.9963768124580383,original
+X6,Enhanced LSTM Net,Deep Learning,1,0.9997159838676453,original
+X7,Enhanced LSTM Net,Deep Learning,1,0.9996911287307739,original
+X8,Enhanced LSTM Net,Deep Learning,0,0.9688527584075928,original
+X9,Enhanced LSTM Net,Deep Learning,1,0.9993951320648193,original
+X10,Enhanced LSTM Net,Deep Learning,2,0.9993225336074829,original
+X1,Transformer Net,Deep Learning,1,0.9900311231613159,original
+X2,Transformer Net,Deep Learning,0,0.9838926792144775,original
+X3,Transformer Net,Deep Learning,1,0.954857587814331,original
+X4,Transformer Net,Deep Learning,2,0.9952206015586853,original
+X5,Transformer Net,Deep Learning,2,0.995672881603241,original
+X6,Transformer Net,Deep Learning,1,0.9898685216903687,original
+X7,Transformer Net,Deep Learning,1,0.9819540977478027,original
+X8,Transformer Net,Deep Learning,0,0.5195391774177551,original
+X9,Transformer Net,Deep Learning,1,0.9663323163986206,original
+X10,Transformer Net,Deep Learning,2,0.9958622455596924,original
+X1,Random Forest (Tuned),Classical ML,UFB,1.0,tuned
+X2,Random Forest (Tuned),Classical ML,ADB,0.745,tuned
+X3,Random Forest (Tuned),Classical ML,UFB,0.98,tuned
+X4,Random Forest (Tuned),Classical ML,WFB,0.9066666666666666,tuned
+X5,Random Forest (Tuned),Classical ML,WFB,0.7233333333333334,tuned
+X6,Random Forest (Tuned),Classical ML,UFB,1.0,tuned
+X7,Random Forest (Tuned),Classical ML,UFB,0.995,tuned
+X8,Random Forest (Tuned),Classical ML,ADB,0.915,tuned
+X9,Random Forest (Tuned),Classical ML,UFB,0.99,tuned
+X10,Random Forest (Tuned),Classical ML,WFB,0.7883333333333334,tuned
+X1,Support Vector Machine (Tuned),Classical ML,UFB,0.9999617305752162,tuned
+X2,Support Vector Machine (Tuned),Classical ML,WFB,0.8161084242518274,tuned
+X3,Support Vector Machine (Tuned),Classical ML,UFB,0.7843856507311824,tuned
+X4,Support Vector Machine (Tuned),Classical ML,WFB,0.9944043777469118,tuned
+X5,Support Vector Machine (Tuned),Classical ML,WFB,0.9807128244209311,tuned
+X6,Support Vector Machine (Tuned),Classical ML,UFB,0.9995574052666897,tuned
+X7,Support Vector Machine (Tuned),Classical ML,UFB,0.8487525738615883,tuned
+X8,Support Vector Machine (Tuned),Classical ML,UFB,0.5245923633097053,tuned
+X9,Support Vector Machine (Tuned),Classical ML,UFB,0.7805880806653345,tuned
+X10,Support Vector Machine (Tuned),Classical ML,WFB,0.976892183937969,tuned
+X1,K-Nearest Neighbors (Tuned),Classical ML,UFB,1.0,tuned
+X2,K-Nearest Neighbors (Tuned),Classical ML,ADB,1.0,tuned
+X3,K-Nearest Neighbors (Tuned),Classical ML,UFB,1.0,tuned
+X4,K-Nearest Neighbors (Tuned),Classical ML,WFB,1.0,tuned
+X5,K-Nearest Neighbors (Tuned),Classical ML,WFB,0.6200187584330842,tuned
+X6,K-Nearest Neighbors (Tuned),Classical ML,UFB,1.0,tuned
+X7,K-Nearest Neighbors (Tuned),Classical ML,UFB,1.0,tuned
+X8,K-Nearest Neighbors (Tuned),Classical ML,ADB,1.0,tuned
+X9,K-Nearest Neighbors (Tuned),Classical ML,UFB,1.0,tuned
+X10,K-Nearest Neighbors (Tuned),Classical ML,WFB,0.6670391511702461,tuned
+X1,Neural Network (Tuned),Classical ML,UFB,0.9999999943210747,tuned
+X2,Neural Network (Tuned),Classical ML,ADB,0.9061928258382236,tuned
+X3,Neural Network (Tuned),Classical ML,UFB,0.9925308395355441,tuned
+X4,Neural Network (Tuned),Classical ML,WFB,0.9999616508976952,tuned
+X5,Neural Network (Tuned),Classical ML,WFB,0.9993530282314852,tuned
+X6,Neural Network (Tuned),Classical ML,UFB,0.9999999268486848,tuned
+X7,Neural Network (Tuned),Classical ML,UFB,0.999994205147333,tuned
+X8,Neural Network (Tuned),Classical ML,UFB,0.7097067928389629,tuned
+X9,Neural Network (Tuned),Classical ML,UFB,0.9728460682385704,tuned
+X10,Neural Network (Tuned),Classical ML,WFB,0.9998397385593696,tuned
+X1,Naive Bayes (Tuned),Classical ML,UFB,1.0,tuned
+X2,Naive Bayes (Tuned),Classical ML,ADB,0.9666170615839205,tuned
+X3,Naive Bayes (Tuned),Classical ML,UFB,1.0,tuned
+X4,Naive Bayes (Tuned),Classical ML,WFB,0.9999999161920705,tuned
+X5,Naive Bayes (Tuned),Classical ML,WFB,0.9999995095971629,tuned
+X6,Naive Bayes (Tuned),Classical ML,UFB,1.0,tuned
+X7,Naive Bayes (Tuned),Classical ML,UFB,1.0,tuned
+X8,Naive Bayes (Tuned),Classical ML,ADB,0.9999953832735863,tuned
+X9,Naive Bayes (Tuned),Classical ML,UFB,1.0,tuned
+X10,Naive Bayes (Tuned),Classical ML,WFB,0.9999990282275629,tuned

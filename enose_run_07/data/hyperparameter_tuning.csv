@@ -1,0 +1,6 @@
+model,best_score,best_params
+Random Forest,0.7752230610844201,"{'max_depth': None, 'min_samples_split': 2, 'n_estimators': 200}"
+Support Vector Machine,0.8146114542820101,"{'C': 10, 'gamma': 'scale', 'kernel': 'linear'}"
+K-Nearest Neighbors,0.8144589338824068,"{'metric': 'manhattan', 'n_neighbors': 3, 'weights': 'distance'}"
+Neural Network,0.8999084877602379,"{'alpha': 0.0001, 'hidden_layer_sizes': (100,), 'learning_rate': 'constant'}"
+Naive Bayes,0.6576679630900633,Default parameters
