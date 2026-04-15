@@ -1,0 +1,5 @@
+model,best_cv_acc,best_params
+Random Forest,0.8724,"{'max_depth': 10, 'min_samples_split': 2, 'n_estimators': 200}"
+SVM (RBF),0.8722,"{'C': 10, 'gamma': 'scale', 'kernel': 'rbf'}"
+K-Nearest Neighbors,0.8674,"{'metric': 'euclidean', 'n_neighbors': 5, 'weights': 'distance'}"
+Linear Discriminant Analysis,0.8417,"{'shrinkage': None, 'solver': 'svd'}"

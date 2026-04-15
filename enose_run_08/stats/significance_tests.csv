@@ -1,0 +1,92 @@
+Model A,Model B,McNemar_chi2,McNemar_p,Wilcoxon_stat,Wilcoxon_p,Significant_p05
+Random Forest,SVM (RBF),0.5714,0.4497,0.0,0.0006,No
+Random Forest,K-Nearest Neighbors,0.1667,0.6831,40.5,0.7253,No
+Random Forest,sklearn MLP,9.0909,0.0026,0.0,0.0006,Yes
+Random Forest,Gradient Boosting,0.0,1.0,44.0,0.5894,No
+Random Forest,Naive Bayes,4.3214,0.0376,0.0,0.0006,Yes
+Random Forest,Logistic Regression,0.0,1.0,0.0,0.0014,No
+Random Forest,Linear Discriminant Analysis,0.0833,0.7728,25.0,0.2704,No
+Random Forest,Soft Voting Ensemble,0.5714,0.4497,7.0,0.0024,No
+Random Forest,Stacking Ensemble,0.0,1.0,1.0,0.0007,No
+Random Forest,Deep MLP (Residual),9.0909,0.0026,0.0,0.0006,Yes
+Random Forest,Conv1D + Attention,5.1429,0.0233,29.0,0.0764,Yes
+Random Forest,BiLSTM + Attention,10.0833,0.0015,0.0,0.0006,Yes
+Random Forest,Transformer Encoder,5.8182,0.0159,3.0,0.0011,Yes
+SVM (RBF),K-Nearest Neighbors,0.8,0.3711,0.0,0.0006,No
+SVM (RBF),sklearn MLP,12.0714,0.0005,0.0,0.0006,Yes
+SVM (RBF),Gradient Boosting,0.1,0.7518,1.0,0.0008,No
+SVM (RBF),Naive Bayes,2.3704,0.1237,0.0,0.0006,No
+SVM (RBF),Logistic Regression,0.125,0.7237,31.0,0.3072,No
+SVM (RBF),Linear Discriminant Analysis,0.3636,0.5465,0.0,0.0014,No
+SVM (RBF),Soft Voting Ensemble,3.125,0.0771,3.0,0.0011,No
+SVM (RBF),Stacking Ensemble,1.125,0.2888,39.0,0.2305,No
+SVM (RBF),Deep MLP (Residual),12.0714,0.0005,0.0,0.0006,Yes
+SVM (RBF),Conv1D + Attention,8.1,0.0044,0.0,0.0006,Yes
+SVM (RBF),BiLSTM + Attention,13.0667,0.0003,0.0,0.0006,Yes
+SVM (RBF),Transformer Encoder,8.6429,0.0033,0.0,0.0006,Yes
+K-Nearest Neighbors,sklearn MLP,9.0909,0.0026,0.0,0.0006,Yes
+K-Nearest Neighbors,Gradient Boosting,0.0,1.0,26.5,0.3253,No
+K-Nearest Neighbors,Naive Bayes,4.6538,0.031,0.0,0.0006,Yes
+K-Nearest Neighbors,Logistic Regression,0.0,1.0,1.5,0.0013,No
+K-Nearest Neighbors,Linear Discriminant Analysis,0.1,0.7518,28.0,0.2199,No
+K-Nearest Neighbors,Soft Voting Ensemble,0.8,0.3711,15.0,0.01,No
+K-Nearest Neighbors,Stacking Ensemble,0.0,1.0,4.0,0.0014,No
+K-Nearest Neighbors,Deep MLP (Residual),9.0909,0.0026,0.0,0.0009,Yes
+K-Nearest Neighbors,Conv1D + Attention,5.1429,0.0233,48.0,0.4924,Yes
+K-Nearest Neighbors,BiLSTM + Attention,10.0833,0.0015,0.0,0.0006,Yes
+K-Nearest Neighbors,Transformer Encoder,5.8182,0.0159,9.0,0.0035,Yes
+sklearn MLP,Gradient Boosting,10.0833,0.0015,0.0,0.0006,Yes
+sklearn MLP,Naive Bayes,17.9259,0.0,0.0,0.0006,Yes
+sklearn MLP,Logistic Regression,10.0833,0.0015,0.0,0.0006,Yes
+sklearn MLP,Linear Discriminant Analysis,9.0909,0.0026,0.0,0.0006,Yes
+sklearn MLP,Soft Voting Ensemble,6.125,0.0133,0.0,0.0006,Yes
+sklearn MLP,Stacking Ensemble,8.1,0.0044,0.0,0.0006,Yes
+sklearn MLP,Deep MLP (Residual),0.25,0.6171,5.0,0.0044,No
+sklearn MLP,Conv1D + Attention,2.25,0.1336,0.0,0.0006,No
+sklearn MLP,BiLSTM + Attention,0.0,1.0,22.0,0.0301,No
+sklearn MLP,Transformer Encoder,0.25,0.6171,0.0,0.0006,No
+Gradient Boosting,Naive Bayes,3.7037,0.0543,0.0,0.0006,No
+Gradient Boosting,Logistic Regression,0.0714,0.7893,1.0,0.0018,No
+Gradient Boosting,Linear Discriminant Analysis,0.0,1.0,24.0,0.4201,No
+Gradient Boosting,Soft Voting Ensemble,1.125,0.2888,25.0,0.0465,No
+Gradient Boosting,Stacking Ensemble,0.125,0.7237,7.0,0.0026,No
+Gradient Boosting,Deep MLP (Residual),10.0833,0.0015,0.0,0.001,Yes
+Gradient Boosting,Conv1D + Attention,6.125,0.0133,35.0,0.155,Yes
+Gradient Boosting,BiLSTM + Attention,11.0769,0.0009,0.0,0.0006,Yes
+Gradient Boosting,Transformer Encoder,6.75,0.0094,9.0,0.0037,Yes
+Naive Bayes,Logistic Regression,4.3478,0.0371,0.0,0.0006,Yes
+Naive Bayes,Linear Discriminant Analysis,5.5,0.019,0.0,0.0006,Yes
+Naive Bayes,Soft Voting Ensemble,8.5217,0.0035,0.0,0.0006,Yes
+Naive Bayes,Stacking Ensemble,5.3333,0.0209,0.0,0.0006,Yes
+Naive Bayes,Deep MLP (Residual),19.36,0.0,0.0,0.0006,Yes
+Naive Bayes,Conv1D + Attention,12.0,0.0005,0.0,0.0006,Yes
+Naive Bayes,BiLSTM + Attention,17.6333,0.0,0.0,0.0006,Yes
+Naive Bayes,Transformer Encoder,16.0,0.0001,0.0,0.0006,Yes
+Logistic Regression,Linear Discriminant Analysis,0.0,1.0,0.0,0.0009,No
+Logistic Regression,Soft Voting Ensemble,1.125,0.2888,23.0,0.0342,No
+Logistic Regression,Stacking Ensemble,0.125,0.7237,54.0,0.7313,No
+Logistic Regression,Deep MLP (Residual),10.0833,0.0015,0.0,0.0006,Yes
+Logistic Regression,Conv1D + Attention,4.9,0.0269,1.0,0.0007,Yes
+Logistic Regression,BiLSTM + Attention,11.0769,0.0009,0.0,0.0006,Yes
+Logistic Regression,Transformer Encoder,6.75,0.0094,0.0,0.0006,Yes
+Linear Discriminant Analysis,Soft Voting Ensemble,0.5714,0.4497,22.0,0.0301,No
+Linear Discriminant Analysis,Stacking Ensemble,0.0,1.0,3.0,0.0011,No
+Linear Discriminant Analysis,Deep MLP (Residual),9.0909,0.0026,0.0,0.0006,Yes
+Linear Discriminant Analysis,Conv1D + Attention,3.2727,0.0704,17.0,0.0141,No
+Linear Discriminant Analysis,BiLSTM + Attention,10.0833,0.0015,0.0,0.0006,Yes
+Linear Discriminant Analysis,Transformer Encoder,5.8182,0.0159,1.0,0.0008,Yes
+Soft Voting Ensemble,Stacking Ensemble,0.25,0.6171,0.0,0.0001,No
+Soft Voting Ensemble,Deep MLP (Residual),6.125,0.0133,0.0,0.0001,Yes
+Soft Voting Ensemble,Conv1D + Attention,1.5,0.2207,0.0,0.0001,No
+Soft Voting Ensemble,BiLSTM + Attention,7.1111,0.0077,0.0,0.0001,Yes
+Soft Voting Ensemble,Transformer Encoder,3.125,0.0771,0.0,0.0001,No
+Stacking Ensemble,Deep MLP (Residual),8.1,0.0044,0.0,0.0001,Yes
+Stacking Ensemble,Conv1D + Attention,4.1667,0.0412,0.0,0.0001,Yes
+Stacking Ensemble,BiLSTM + Attention,9.0909,0.0026,0.0,0.0001,Yes
+Stacking Ensemble,Transformer Encoder,4.9,0.0269,0.0,0.0001,Yes
+Deep MLP (Residual),Conv1D + Attention,2.25,0.1336,0.0,0.0001,No
+Deep MLP (Residual),BiLSTM + Attention,0.0,1.0,0.0,0.0001,No
+Deep MLP (Residual),Transformer Encoder,0.5,0.4795,0.0,0.0001,No
+Conv1D + Attention,BiLSTM + Attention,2.2857,0.1306,0.0,0.0001,No
+Conv1D + Attention,Transformer Encoder,0.25,0.6171,0.0,0.0001,No
+BiLSTM + Attention,Transformer Encoder,0.5714,0.4497,0.0,0.0001,No

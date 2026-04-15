@@ -1,0 +1,80 @@
+================================================================================
+E-NOSE COCOA BEAN FERMENTATION CLASSIFICATION
+Journal-Quality Analysis Report (SCIE/Q1 Standard)
+================================================================================
+Date: 2026-04-15 21:17:45
+Run timestamp: 20260415_211534
+Dataset type: all_data_enose
+
+DATASET SUMMARY
+----------------------------------------
+  ADB: 160 samples
+  UFB: 40 samples
+  WFB: 80 samples
+Total training: 280 | Test (unlabelled): 10
+Features: 14 sensor channels (ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13)
+
+BEST MODEL
+----------------------------------------
+  Model:         BiLSTM + Attention
+  Accuracy:      0.9405  95%CI [0.8810, 0.9881]
+  F1 (weighted): 0.9401
+  MCC:           0.8954
+  Cohen's κ:     0.8936
+  AUC (macro):   0.9704
+  Brier Score:   0.0395
+
+FULL MODEL RANKINGS
+----------------------------------------
+                       Model  Accuracy  F1 (W)    MCC  Kappa (κ)    AUC  CV Mean  CV Std  95% CI Lo  95% CI Hi
+          BiLSTM + Attention    0.9405  0.9401 0.8954     0.8936 0.9704   0.9405  0.0000     0.8810     0.9881
+                 sklearn MLP    0.9286  0.9278 0.8749     0.8716 0.9834   0.9571  0.0233     0.8690     0.9762
+         Deep MLP (Residual)    0.9286  0.9267 0.8769     0.8743 0.9802   0.9286  0.0000     0.8571     0.9762
+         Transformer Encoder    0.9048  0.9021 0.8349     0.8323 0.9146   0.9048  0.0000     0.8333     0.9643
+          Conv1D + Attention    0.8810  0.8776 0.7927     0.7799 0.9088   0.8810  0.0000     0.8095     0.9405
+        Soft Voting Ensemble    0.8333  0.8231 0.7090     0.6889 0.9159      NaN     NaN     0.7500     0.9048
+           Stacking Ensemble    0.8095  0.8008 0.6609     0.6433 0.8684      NaN     NaN     0.7262     0.8810
+               Random Forest    0.7976  0.7863 0.6398     0.6186 0.8775   0.8667  0.0268     0.7024     0.8810
+Linear Discriminant Analysis    0.7976  0.7906 0.6375     0.6293 0.8463   0.8560  0.0302     0.7024     0.8810
+         K-Nearest Neighbors    0.7976  0.7821 0.6451     0.6136 0.8715   0.8679  0.0401     0.7024     0.8810
+           Gradient Boosting    0.7857  0.7793 0.6137     0.6038 0.8551   0.8607  0.0429     0.6905     0.8690
+         Logistic Regression    0.7857  0.7715 0.6186     0.5935 0.8472   0.8048  0.0449     0.7024     0.8690
+                   SVM (RBF)    0.7619  0.7321 0.5866     0.5380 0.8922   0.7940  0.0344     0.6667     0.8452
+                 Naive Bayes    0.6548  0.6561 0.4383     0.4314 0.7958   0.6833  0.0377     0.5476     0.7619
+
+STATISTICAL SIGNIFICANCE (McNemar p-values, top pairs)
+----------------------------------------
+      Model A                      Model B  McNemar_p Significant_p05
+Random Forest                    SVM (RBF)     0.4497              No
+Random Forest          K-Nearest Neighbors     0.6831              No
+Random Forest                  sklearn MLP     0.0026             Yes
+Random Forest            Gradient Boosting     1.0000              No
+Random Forest                  Naive Bayes     0.0376             Yes
+Random Forest          Logistic Regression     1.0000              No
+Random Forest Linear Discriminant Analysis     0.7728              No
+Random Forest         Soft Voting Ensemble     0.4497              No
+Random Forest            Stacking Ensemble     1.0000              No
+Random Forest          Deep MLP (Residual)     0.0026             Yes
+Random Forest           Conv1D + Attention     0.0233             Yes
+Random Forest           BiLSTM + Attention     0.0015             Yes
+Random Forest          Transformer Encoder     0.0159             Yes
+    SVM (RBF)          K-Nearest Neighbors     0.3711              No
+    SVM (RBF)                  sklearn MLP     0.0005             Yes
+
+UNLABELLED SAMPLE PREDICTIONS
+----------------------------------------
+Sample_ID Consensus Agreement
+       X1       UFB     14/14
+       X2       ADB     13/14
+       X3       UFB     14/14
+       X4       WFB     14/14
+       X5       WFB     14/14
+       X6       UFB     14/14
+       X7       UFB     14/14
+       X8       ADB     10/14
+       X9       UFB     14/14
+      X10       WFB     14/14
+
+================================================================================
+END OF REPORT
+================================================================================

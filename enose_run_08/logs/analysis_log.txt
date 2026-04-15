@@ -1,0 +1,160 @@
+E-NOSE COCOA BEAN CLASSIFICATION — JOURNAL-QUALITY ANALYSIS
+======================================================================
+Started: 2026-04-15 21:15:34
+Config: seed=42, CV=3×5, bootstrap_n=1000
+Output: enose_run_08
+
+Loading and preprocessing data...
+❌ Sheet '3_categories (2)': Worksheet named '3_categories (2)' not found
+❌ Sheet '6_categories': Worksheet named '6_categories' not found
+✅ Loaded sheet: 'all_data_enose'
+  Samples: 280 | Classes: ['WFB' 'ADB' 'UFB']
+❌ Test sheet 'unknown': Worksheet named 'unknown' not found
+✅ Test sheet 'unknown_data_enose': 10 samples
+
+============================================================
+EXPLORATORY DATA ANALYSIS
+============================================================
+  EDA figures saved to enose_run_08/plots
+  Train: (196, 14) | Val: (84, 14) | Test (unlabelled): (10, 14)
+
+  Manifold visualisations (PCA, LDA, t-SNE, UMAP) ...
+    Saved → manifold_projections.png
+
+============================================================
+MODEL TRAINING & EVALUATION
+============================================================
+
+  Training Random Forest ...
+    Val Acc=0.7976 [95%CI 0.7024-0.8810]  F1=0.7863  κ=0.6186  CV=0.8667±0.0268
+
+  Training SVM (RBF) ...
+    Val Acc=0.7619 [95%CI 0.6667-0.8452]  F1=0.7321  κ=0.5380  CV=0.7940±0.0344
+
+  Training K-Nearest Neighbors ...
+    Val Acc=0.7976 [95%CI 0.7024-0.8810]  F1=0.7821  κ=0.6136  CV=0.8679±0.0401
+
+  Training sklearn MLP ...
+    Val Acc=0.9286 [95%CI 0.8690-0.9762]  F1=0.9278  κ=0.8716  CV=0.9571±0.0233
+
+  Training Gradient Boosting ...
+    Val Acc=0.7857 [95%CI 0.6905-0.8690]  F1=0.7793  κ=0.6038  CV=0.8607±0.0429
+
+  Training Naive Bayes ...
+    Val Acc=0.6548 [95%CI 0.5476-0.7619]  F1=0.6561  κ=0.4314  CV=0.6833±0.0377
+
+  Training Logistic Regression ...
+    Val Acc=0.7857 [95%CI 0.7024-0.8690]  F1=0.7715  κ=0.5935  CV=0.8048±0.0449
+
+  Training Linear Discriminant Analysis ...
+    Val Acc=0.7976 [95%CI 0.7024-0.8810]  F1=0.7906  κ=0.6293  CV=0.8560±0.0302
+
+  Building ensemble (Soft Voting) ...
+    Ensemble Acc=0.8333  AUC=0.9159
+
+  Building ensemble (Stacking) ...
+    Stacking Acc=0.8095  AUC=0.8684
+
+========================================
+DEEP LEARNING TRAINING
+========================================
+
+  Training Deep MLP (Residual) ...
+  Ep 20/150  TL=0.4523  VL=0.7991  VAcc=0.7738
+  Ep 40/150  TL=0.2584  VL=0.6272  VAcc=0.8810
+  Ep 60/150  TL=0.1403  VL=0.3275  VAcc=0.9286
+  Early stop at ep 69
+    Best Val Acc=0.9286  F1=0.9267  κ=0.8743
+
+  Training Conv1D + Attention ...
+  Ep 20/150  TL=0.4102  VL=0.8729  VAcc=0.8095
+  Ep 40/150  TL=0.2276  VL=0.7162  VAcc=0.8690
+  Early stop at ep 54
+    Best Val Acc=0.8810  F1=0.8776  κ=0.7799
+
+  Training BiLSTM + Attention ...
+  Ep 20/150  TL=0.2452  VL=0.7199  VAcc=0.7976
+  Ep 40/150  TL=0.1538  VL=0.2996  VAcc=0.9286
+  Ep 60/150  TL=0.0127  VL=0.3372  VAcc=0.9405
+  Early stop at ep 60
+    Best Val Acc=0.9405  F1=0.9401  κ=0.8936
+
+  Training Transformer Encoder ...
+  Ep 20/150  TL=0.3740  VL=0.8006  VAcc=0.7976
+  Ep 40/150  TL=0.2793  VL=0.7049  VAcc=0.9048
+  Early stop at ep 55
+    Best Val Acc=0.9048  F1=0.9021  κ=0.8323
+
+============================================================
+HYPERPARAMETER TUNING
+============================================================
+  Random Forest: best CV=0.8724  params={'max_depth': 10, 'min_samples_split': 2, 'n_estimators': 200}
+  SVM (RBF): best CV=0.8722  params={'C': 10, 'gamma': 'scale', 'kernel': 'rbf'}
+  K-Nearest Neighbors: best CV=0.8674  params={'metric': 'euclidean', 'n_neighbors': 5, 'weights': 'distance'}
+  Linear Discriminant Analysis: best CV=0.8417  params={'shrinkage': None, 'solver': 'svd'}
+
+  Plotting confusion matrices ...
+    Saved → confusion_matrices.png
+
+  Plotting ROC curves ...
+    Saved → enose_run_08/plots/roc_curves.png
+
+  Calibration analysis ...
+    Saved → calibration_reliability.png | calibration_metrics.csv
+
+  Performance summary figure ...
+    Saved → accuracy_comparison_ci.png | radar_top5_models.png | full_performance_table.csv
+
+============================================================
+STATISTICAL SIGNIFICANCE TESTS
+============================================================
+  Saved pairwise significance table → enose_run_08/stats/significance_tests.csv
+  Significant pairs (p<0.05): 48 / 91
+
+  Per-class metrics table ...
+    Saved → per_class_metrics.csv (42 rows)
+  ⚠️  shap not installed — using permutation importance as proxy.
+
+  SHAP / feature attribution ...
+
+  Ablation study (leave-one-sensor-out) ...
+    Saved → ablation_study.png | ablation_study.csv
+
+============================================================
+PREDICTING UNLABELLED SAMPLES
+============================================================
+  Random Forest: avg confidence = 0.887
+  SVM (RBF): avg confidence = 0.841
+  K-Nearest Neighbors: avg confidence = 0.940
+  sklearn MLP: avg confidence = 0.947
+  Gradient Boosting: avg confidence = 0.986
+  Naive Bayes: avg confidence = 0.997
+  Logistic Regression: avg confidence = 0.851
+  Linear Discriminant Analysis: avg confidence = 0.908
+  Soft Voting Ensemble: avg confidence = 0.912
+  Stacking Ensemble: avg confidence = 0.916
+  Deep MLP (Residual): avg confidence = 0.975
+  Conv1D + Attention: avg confidence = 0.986
+  BiLSTM + Attention: avg confidence = 0.962
+  Transformer Encoder: avg confidence = 0.982
+Sample_ID Consensus Agreement Random Forest SVM (RBF) K-Nearest Neighbors sklearn MLP Gradient Boosting
+       X1       UFB     14/14           UFB       UFB                 UFB         UFB               UFB
+       X2       ADB     13/14           ADB       ADB                 ADB         ADB               ADB
+       X3       UFB     14/14           UFB       UFB                 UFB         UFB               UFB
+       X4       WFB     14/14           WFB       WFB                 WFB         WFB               WFB
+       X5       WFB     14/14           WFB       WFB                 WFB         WFB               WFB
+       X6       UFB     14/14           UFB       UFB                 UFB         UFB               UFB
+       X7       UFB     14/14           UFB       UFB                 UFB         UFB               UFB
+       X8       ADB     10/14           ADB       ADB                 ADB         ADB               ADB
+       X9       UFB     14/14           UFB       UFB                 UFB         UFB               UFB
+      X10       WFB     14/14           WFB       WFB                 WFB         WFB               WFB
+
+✅ Journal summary report → enose_run_08/JOURNAL_SUMMARY_REPORT_20260415_211534.txt
+
+======================================================================
+ANALYSIS COMPLETE
+======================================================================
+  Results  → enose_run_08/
+  Figures  → enose_run_08/plots/  (12 files)
+  Tables   → enose_run_08/data/   (6 files)
+  Stats    → enose_run_08/stats/  (2 files)
