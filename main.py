@@ -3,20 +3,23 @@ E-Nose Cocoa Bean Fermentation Classification
 ============================================
 Journal-quality implementation targeting SCIE/Q1 standards.
 
-Upgrades over baseline:
-  - Stratified k-fold CV (k=5) with repeated CV (3 repeats) for robust estimates
-  - Statistical significance testing: McNemar's test + Wilcoxon signed-rank
-  - 95% CI on all reported metrics via bootstrap (n=1000)
-  - ROC/AUC curves (macro & per-class OvR) with DeLong-style CI
-  - Calibration analysis (reliability diagrams, ECE, MCE, Brier score)
-  - SHAP-based feature attribution for every model family
-  - t-SNE + UMAP manifold projections alongside PCA
-  - Ablation study: impact of each sensor channel
-  - Ensemble: soft-vote + stacking meta-learner
-  - Cohen's kappa alongside accuracy/F1/MCC
-  - Publication-ready figures (300 dpi, Nature/IEEE style rcParams)
-  - Reproducibility seed management and config block at top
+Models analysed (6 total):
+  Classical ML  : Random Forest, SVM (RBF), K-Nearest Neighbors
+  Deep Learning : Conv1D + Attention, BiLSTM + Attention, Transformer Encoder
+
+Key analysis features:
+  - Repeated Stratified K-Fold CV (3 × 5-fold) for robust performance estimates
+  - Statistical significance: McNemar's test (val set) + Wilcoxon signed-rank (CV)
+  - 95% bootstrap confidence intervals on all accuracy scores (n=1000)
+  - ROC/AUC curves — per-class OvR + macro-average for all models
+  - Calibration analysis: reliability diagrams, ECE, Brier score
+  - SHAP feature attribution (TreeExplainer for RF; permutation for SVM/KNN)
+  - Ablation study: leave-one-sensor-out accuracy drop
+  - Manifold projections: PCA, LDA, t-SNE, UMAP
   - Per-class sensitivity/specificity table (ISO 5725-style)
+  - Cohen's kappa, MCC, AUC alongside standard accuracy/F1
+  - Publication-ready figures (300 dpi, IEEE/Nature rcParams)
+  - Reproducible: single RANDOM_SEED controls all stochastic operations
 """
 
 # ─────────────────────── CONFIG ───────────────────────
@@ -28,7 +31,7 @@ DPI           = 300
 EXCEL_FILE    = "update_data_enose_timeseries.xlsx"
 # ──────────────────────────────────────────────────────
 
-import os, sys, warnings, json
+import os, sys, warnings
 from datetime import datetime
 from copy import deepcopy
 from itertools import combinations
@@ -38,11 +41,9 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import Patch
 import seaborn as sns
 from scipy import stats
-from scipy.spatial.distance import pdist, squareform
 
 from sklearn.model_selection import (
     train_test_split, StratifiedKFold, RepeatedStratifiedKFold,
@@ -55,20 +56,11 @@ from sklearn.metrics import (
     roc_auc_score, roc_curve, auc, brier_score_loss, log_loss
 )
 from sklearn.calibration import calibration_curve
-from sklearn.ensemble import (
-    RandomForestClassifier, GradientBoostingClassifier,
-    VotingClassifier, StackingClassifier
-)
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neural_network import MLPClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.feature_selection import mutual_info_classif
 from sklearn.inspection import permutation_importance
 from sklearn.decomposition import PCA
-from sklearn.calibration import CalibratedClassifierCV
 
 import torch
 import torch.nn as nn
@@ -119,7 +111,7 @@ class ResidualBlock(nn.Module):
 
 
 class ImprovedDeepMLP(nn.Module):
-    """Deep MLP with residual connections and layer normalisation."""
+    """Deep MLP with residual connections and layer normalisation. (Retained for reference; not used in analysis.)"""
     def __init__(self, input_dim, num_classes, dropout_rate=0.4):
         super().__init__()
         self.input_proj = nn.Sequential(
@@ -587,19 +579,11 @@ def train_and_evaluate_models(X_train_full, X_val, y_train_full, y_val,
     class_labels = sorted(np.unique(y_train_full))
     results, trained_models, cv_scores_dict = {}, {}, {}
 
-    # ── Classical ML ──────────────────────────────────────────
+    # ── Classical ML: Random Forest, SVM, KNN ────────────────
     ml_configs = {
-        "Random Forest":         RandomForestClassifier(n_estimators=200, random_state=RANDOM_SEED, n_jobs=-1),
-        "SVM (RBF)":             SVC(probability=True, random_state=RANDOM_SEED),
-        "K-Nearest Neighbors":   KNeighborsClassifier(n_jobs=-1),
-        "sklearn MLP":           MLPClassifier(random_state=RANDOM_SEED, max_iter=1000),
-        "Gradient Boosting":     GradientBoostingClassifier(random_state=RANDOM_SEED),
-        "Naive Bayes":           GaussianNB(),
-        "Logistic Regression":          LogisticRegression(max_iter=2000, random_state=RANDOM_SEED, n_jobs=-1),
-        # LDA: optimal generative classifier under Gaussian class-conditional assumption;
-        # also provides an explicit low-dimensional projection (n_classes-1 components)
-        # comparable to PCA / t-SNE in the manifold analysis.
-        "Linear Discriminant Analysis": LinearDiscriminantAnalysis(),
+        "Random Forest":       RandomForestClassifier(n_estimators=200, random_state=RANDOM_SEED, n_jobs=-1),
+        "SVM (RBF)":           SVC(probability=True, random_state=RANDOM_SEED),
+        "K-Nearest Neighbors": KNeighborsClassifier(n_jobs=-1),
     }
 
     rskf = RepeatedStratifiedKFold(n_splits=CV_FOLDS, n_repeats=CV_REPEATS, random_state=RANDOM_SEED)
@@ -614,12 +598,10 @@ def train_and_evaluate_models(X_train_full, X_val, y_train_full, y_val,
 
         metrics = calculate_comprehensive_metrics(y_val, y_pred, class_labels, y_prob)
 
-        # Bootstrap CI for accuracy
         ya, yp = np.array(y_val), np.array(y_pred)
         _, ci_lo, ci_hi = bootstrap_ci(ya, yp, accuracy_score)
         metrics["acc_ci_lo"] = ci_lo; metrics["acc_ci_hi"] = ci_hi
 
-        # Repeated stratified CV
         cv_acc = cross_val_score(model, X_train_full, y_train_full,
                                  cv=rskf, scoring="accuracy", n_jobs=-1)
         metrics["cv_mean"] = cv_acc.mean(); metrics["cv_std"] = cv_acc.std()
@@ -630,52 +612,7 @@ def train_and_evaluate_models(X_train_full, X_val, y_train_full, y_val,
               f"F1={metrics['f1_score']:.4f}  κ={metrics['kappa']:.4f}  "
               f"CV={metrics['cv_mean']:.4f}±{metrics['cv_std']:.4f}")
 
-    # ── Ensemble: Soft Voting ─────────────────────────────────
-    print("\n  Building ensemble (Soft Voting) ...")
-    voting_clf = VotingClassifier(
-        estimators=[(n, deepcopy(m)) for n, m in ml_configs.items()
-                    if hasattr(m, "predict_proba")],
-        voting="soft", n_jobs=-1
-    )
-    voting_clf.fit(X_train, y_train)
-    trained_models["Soft Voting Ensemble"] = voting_clf
-    y_pred = voting_clf.predict(X_val)
-    y_prob = voting_clf.predict_proba(X_val)
-    metrics = calculate_comprehensive_metrics(y_val, y_pred, class_labels, y_prob)
-    ya, yp = np.array(y_val), np.array(y_pred)
-    _, ci_lo, ci_hi = bootstrap_ci(ya, yp, accuracy_score)
-    metrics.update(acc_ci_lo=ci_lo, acc_ci_hi=ci_hi, cv_mean=np.nan, cv_std=np.nan)
-    results["Soft Voting Ensemble"] = metrics
-    cv_scores_dict["Soft Voting Ensemble"] = np.full(CV_FOLDS * CV_REPEATS, metrics["accuracy"])
-    print(f"    Ensemble Acc={metrics['accuracy']:.4f}  AUC={metrics.get('auc', np.nan):.4f}")
-
-    # ── Stacking ──────────────────────────────────────────────
-    print("\n  Building ensemble (Stacking) ...")
-    base_estimators = [
-        ("rf",  RandomForestClassifier(n_estimators=100, random_state=RANDOM_SEED, n_jobs=-1)),
-        ("svm", SVC(probability=True, random_state=RANDOM_SEED)),
-        ("gb",  GradientBoostingClassifier(random_state=RANDOM_SEED)),
-        ("knn", KNeighborsClassifier()),
-        ("lda", LinearDiscriminantAnalysis()),
-    ]
-    stacking_clf = StackingClassifier(
-        estimators=base_estimators,
-        final_estimator=LogisticRegression(max_iter=2000, random_state=RANDOM_SEED),
-        cv=5, passthrough=False, n_jobs=-1
-    )
-    stacking_clf.fit(X_train, y_train)
-    trained_models["Stacking Ensemble"] = stacking_clf
-    y_pred = stacking_clf.predict(X_val)
-    y_prob = stacking_clf.predict_proba(X_val)
-    metrics = calculate_comprehensive_metrics(y_val, y_pred, class_labels, y_prob)
-    ya, yp = np.array(y_val), np.array(y_pred)
-    _, ci_lo, ci_hi = bootstrap_ci(ya, yp, accuracy_score)
-    metrics.update(acc_ci_lo=ci_lo, acc_ci_hi=ci_hi, cv_mean=np.nan, cv_std=np.nan)
-    results["Stacking Ensemble"] = metrics
-    cv_scores_dict["Stacking Ensemble"] = np.full(CV_FOLDS * CV_REPEATS, metrics["accuracy"])
-    print(f"    Stacking Acc={metrics['accuracy']:.4f}  AUC={metrics.get('auc', np.nan):.4f}")
-
-    # ── Deep Learning ─────────────────────────────────────────
+    # ── Deep Learning: Conv1D, BiLSTM, Transformer ────────────
     print("\n" + "=" * 40)
     print("DEEP LEARNING TRAINING")
     print("=" * 40)
@@ -686,10 +623,9 @@ def train_and_evaluate_models(X_train_full, X_val, y_train_full, y_val,
     n_cls     = len(le.classes_)
 
     dl_configs = {
-        "Deep MLP (Residual)":   ImprovedDeepMLP,
-        "Conv1D + Attention":    ImprovedConv1DNet,
-        "BiLSTM + Attention":    ImprovedLSTMNet,
-        "Transformer Encoder":   TransformerNet,
+        "Conv1D + Attention":  ImprovedConv1DNet,
+        "BiLSTM + Attention":  ImprovedLSTMNet,
+        "Transformer Encoder": TransformerNet,
     }
 
     for name, ModelClass in dl_configs.items():
@@ -907,7 +843,7 @@ def shap_analysis(trained_models, X_train, X_val, feature_cols, class_labels):
     shap_results = {}
 
     tree_models = {k: v for k, v in trained_models.items()
-                   if isinstance(v, (RandomForestClassifier, GradientBoostingClassifier))}
+                   if isinstance(v, RandomForestClassifier)}
 
     if shap is not None and tree_models:
         for name, model in tree_models.items():
@@ -988,13 +924,12 @@ def manifold_visualizations(X_scaled, y_full, feature_cols):
     axes[0].set_title("PCA"); axes[0].legend(fontsize=8)
 
     # ── LDA discriminant projection ────────────────────────────
-    # LDA maximises between-class scatter / within-class scatter,
-    # yielding at most (n_classes − 1) discriminant axes.
-    # This panel directly visualises class separability in the
-    # subspace the classifier uses for decision-making.
+    # LDA maximises between-class / within-class scatter, yielding
+    # at most (n_classes − 1) supervised discriminant axes.
     try:
+        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as _LDA
         n_components_lda = min(2, len(unique_classes) - 1)
-        lda  = LinearDiscriminantAnalysis(n_components=n_components_lda)
+        lda  = _LDA(n_components=n_components_lda)
         Xlda = lda.fit_transform(X_scaled, y_full)
         explained = getattr(lda, "explained_variance_ratio_", None)
 
@@ -1006,9 +941,8 @@ def manifold_visualizations(X_scaled, y_full, feature_cols):
             xlab = f"LD1 ({explained[0]:.1%})" if explained is not None else "LD1"
             ylab = f"LD2 ({explained[1]:.1%})" if explained is not None and len(explained) > 1 else "LD2"
         else:
-            # Only 1 discriminant axis (binary classification)
-            axes[1].scatter(Xlda[:,0], np.zeros(len(Xlda)), c=[color_map[c] for c in y_full],
-                            alpha=0.75, s=40, edgecolors="none")
+            axes[1].scatter(Xlda[:,0], np.zeros(len(Xlda)),
+                            c=[color_map[c] for c in y_full], alpha=0.75, s=40, edgecolors="none")
             for cls in unique_classes:
                 axes[1].scatter([], [], label=cls, color=color_map[cls])
             xlab = "LD1"; ylab = ""
@@ -1208,7 +1142,7 @@ def plot_performance_summary(results):
          "CV Std":      round(v.get("cv_std",  np.nan), 4),
          "95% CI Lo":   round(v.get("acc_ci_lo", np.nan), 4),
          "95% CI Hi":   round(v.get("acc_ci_hi", np.nan), 4),
-         "Model Type":  "Deep Learning" if any(d in k for d in ["MLP","Conv","LSTM","Transformer"]) else "Classical/Ensemble",
+         "Model Type":  "Deep Learning" if any(d in k for d in ["Conv", "LSTM", "Transformer"]) else "Classical ML",
         }
         for k, v in results.items()
     ]).sort_values("Accuracy", ascending=False)
@@ -1217,7 +1151,7 @@ def plot_performance_summary(results):
 
     # Bar chart (accuracy + CI)
     fig, ax = plt.subplots(figsize=(max(10, len(df)*0.9), 5))
-    colors = ["#2196F3" if t == "Classical/Ensemble" else "#E91E63" for t in df["Model Type"]]
+    colors = ["#2196F3" if t == "Classical ML" else "#E91E63" for t in df["Model Type"]]
     bars   = ax.bar(range(len(df)), df["Accuracy"], color=colors, alpha=0.8, width=0.65)
     # CI error bars
     lo = df["Accuracy"] - df["95% CI Lo"]
@@ -1228,8 +1162,7 @@ def plot_performance_summary(results):
     ax.set_xticklabels(df["Model"], rotation=40, ha="right", fontsize=8)
     ax.set_ylabel("Accuracy"); ax.set_ylim(max(0, df["Accuracy"].min() - 0.1), 1.02)
     ax.set_title("Model Accuracy Comparison with 95% Bootstrap CI")
-    from matplotlib.patches import Patch
-    ax.legend(handles=[Patch(color="#2196F3", label="Classical/Ensemble"),
+    ax.legend(handles=[Patch(color="#2196F3", label="Classical ML"),
                        Patch(color="#E91E63", label="Deep Learning")], fontsize=8)
     plt.tight_layout()
     plt.savefig(os.path.join(PLOTS_DIR, "accuracy_comparison_ci.png"))
@@ -1324,18 +1257,20 @@ def exploratory_data_analysis(train_data, test_data, feature_cols):
 # ══════════════════════════════════════════════════════════════
 
 def hyperparameter_tuning(X_train, y_train):
-    print("\n" + "=" * 60); print("HYPERPARAMETER TUNING"); print("=" * 60)
+    print("\n" + "=" * 60); print("HYPERPARAMETER TUNING (RF, SVM, KNN)"); print("=" * 60)
     param_grids = {
         "Random Forest":       (RandomForestClassifier(random_state=RANDOM_SEED, n_jobs=-1),
-                                {"n_estimators":[100,200], "max_depth":[None,10,20], "min_samples_split":[2,5]}),
+                                {"n_estimators": [100, 200, 300],
+                                 "max_depth":    [None, 10, 20],
+                                 "min_samples_split": [2, 5]}),
         "SVM (RBF)":           (SVC(random_state=RANDOM_SEED, probability=True),
-                                {"C":[0.1,1,10], "gamma":["scale","auto"], "kernel":["rbf","linear"]}),
+                                {"C":     [0.1, 1, 10, 100],
+                                 "gamma": ["scale", "auto"],
+                                 "kernel":["rbf", "linear", "poly"]}),
         "K-Nearest Neighbors": (KNeighborsClassifier(n_jobs=-1),
-                                {"n_neighbors":[3,5,7], "weights":["uniform","distance"], "metric":["euclidean","manhattan"]}),
-        # LDA tuning: solver choice + Ledoit-Wolf automatic shrinkage for small-sample stability
-        "Linear Discriminant Analysis": (LinearDiscriminantAnalysis(),
-                                         {"solver":["svd","lsqr","eigen"],
-                                          "shrinkage":[None, "auto", 0.1, 0.5, 0.9]}),
+                                {"n_neighbors": [3, 5, 7, 9],
+                                 "weights":     ["uniform", "distance"],
+                                 "metric":      ["euclidean", "manhattan", "minkowski"]}),
     }
     tuned = {}
     skf = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_SEED)
@@ -1396,31 +1331,169 @@ def predict_unlabelled(trained_models, X_test, test_ids, class_labels, le=None):
 
 
 # ══════════════════════════════════════════════════════════════
-#  TRAINING CURVE PLOT  (for DL models)
+#  TRAINING CURVE PLOT  (all 3 DL models, side-by-side)
 # ══════════════════════════════════════════════════════════════
 
 def plot_training_curves(results):
+    """
+    Publication-quality training curves for all DL models.
+    Each model gets its own column with 2 rows:
+      Row 1 – Train loss vs Val loss
+      Row 2 – Val accuracy over epochs + best-acc annotation
+    """
     dl_names = [n for n, v in results.items() if "training_history" in v]
-    if not dl_names: return
-    n = len(dl_names); ncols = min(n, 2); nrows = (n + ncols - 1) // ncols
-    fig, axes = plt.subplots(nrows, ncols, figsize=(6*ncols, 4*nrows))
-    axes = np.array(axes).flatten()
-    for ax, name in zip(axes, dl_names):
-        h = results[name]["training_history"]
-        ep = range(1, len(h["train_losses"])+1)
-        ax.plot(ep, h["train_losses"], label="Train Loss", color="#E91E63")
-        ax2 = ax.twinx()
-        ax2.plot(ep, h["val_accuracies"], label="Val Acc", color="#2196F3", ls="--")
-        ax.set_xlabel("Epoch"); ax.set_ylabel("Loss", color="#E91E63"); ax2.set_ylabel("Val Acc", color="#2196F3")
-        ax.set_title(name, fontsize=9)
-        lines1, lbls1 = ax.get_legend_handles_labels()
-        lines2, lbls2 = ax2.get_legend_handles_labels()
-        ax.legend(lines1+lines2, lbls1+lbls2, fontsize=7)
-    for ax in axes[len(dl_names):]: ax.axis("off")
-    plt.suptitle("Deep Learning Training Curves", fontweight="bold")
+    if not dl_names:
+        return
+
+    n = len(dl_names)
+    fig, axes = plt.subplots(2, n, figsize=(5 * n, 8), sharex="col")
+    if n == 1:
+        axes = axes.reshape(2, 1)
+
+    dl_colors = {"Conv1D + Attention":  "#E91E63",
+                 "BiLSTM + Attention":  "#2196F3",
+                 "Transformer Encoder": "#4CAF50"}
+    default_c = "#9C27B0"
+
+    for col, name in enumerate(dl_names):
+        h    = results[name]["training_history"]
+        ep   = range(1, len(h["train_losses"]) + 1)
+        color = dl_colors.get(name, default_c)
+
+        # ── Row 0: loss curves ──────────────────────────────
+        ax0 = axes[0, col]
+        ax0.plot(ep, h["train_losses"], color=color,   lw=1.5, label="Train loss")
+        ax0.plot(ep, h["val_losses"],   color=color,   lw=1.5, ls="--", alpha=0.6, label="Val loss")
+        ax0.set_ylabel("Cross-Entropy Loss")
+        ax0.set_title(name, fontsize=10, fontweight="bold")
+        ax0.legend(fontsize=8)
+
+        # ── Row 1: val accuracy ─────────────────────────────
+        ax1 = axes[1, col]
+        ax1.plot(ep, h["val_accuracies"], color=color, lw=1.5)
+        best_ep  = int(np.argmax(h["val_accuracies"])) + 1
+        best_acc = max(h["val_accuracies"])
+        ax1.axvline(best_ep, color="grey", ls=":", lw=1)
+        ax1.annotate(f"Best={best_acc:.4f}\n(ep {best_ep})",
+                     xy=(best_ep, best_acc),
+                     xytext=(best_ep + max(1, len(ep)//10), best_acc - 0.05),
+                     fontsize=7, color="grey",
+                     arrowprops=dict(arrowstyle="->", color="grey", lw=0.8))
+        ax1.set_xlabel("Epoch")
+        ax1.set_ylabel("Validation Accuracy")
+        ax1.set_ylim(0, 1.05)
+
+    plt.suptitle("Deep Learning Training Dynamics\n(Conv1D / BiLSTM / Transformer)",
+                 fontweight="bold", fontsize=12)
     plt.tight_layout()
     plt.savefig(os.path.join(PLOTS_DIR, "dl_training_curves.png"))
     plt.close()
+    print(f"    Saved → dl_training_curves.png")
+
+
+# ══════════════════════════════════════════════════════════════
+#  RAW SENSOR RESPONSE VISUALIZATION
+# ══════════════════════════════════════════════════════════════
+
+def plot_raw_sensor_responses():
+    """
+    Reads the original time-series Excel sheet and plots per-class
+    mean sensor response profiles (14 channels × time).
+    This is the canonical figure in e-nose papers showing the raw
+    transient response before feature extraction.
+    """
+    print("\n  Plotting raw sensor response profiles ...")
+    try:
+        for sheet in ["3_categories (2)", "6_categories", "all_data_enose"]:
+            try:
+                df = pd.read_excel(EXCEL_FILE, sheet_name=sheet, header=None)
+                break
+            except Exception:
+                continue
+        else:
+            print("    ⚠️  Could not load time-series sheet for raw plots.")
+            return
+
+        row1 = df.iloc[0]   # Ch0, Ch1, ...
+        row2 = df.iloc[1]   # category labels
+        data = df.iloc[2:].reset_index(drop=True)
+
+        # Build dict: class → {channel → [time-series values]}
+        class_ch_ts = {}
+        for ci in range(1, len(row1)):
+            ch_name  = str(row1.iloc[ci])
+            category = str(row2.iloc[ci]).strip()
+            if not ch_name.startswith("Ch"): continue
+            try:   ch_num = int(ch_name.replace("Ch", ""))
+            except: continue
+            vals = []
+            for v in data.iloc[:, ci].values:
+                if pd.notna(v):
+                    try: vals.append(float(str(v).replace(",", ".")))
+                    except: pass
+            if vals:
+                class_ch_ts.setdefault(category, {}).setdefault(ch_num, []).append(vals)
+
+        unique_classes = sorted(class_ch_ts.keys())
+        n_cls  = len(unique_classes)
+        n_ch   = 14
+        palette = sns.color_palette("tab10", n_cls)
+
+        # ── Figure 1: mean response per channel per class ──
+        fig, axes = plt.subplots(2, 7, figsize=(21, 8), sharey=False)
+        for ch in range(n_ch):
+            ax = axes[ch // 7, ch % 7]
+            for ci, cls in enumerate(unique_classes):
+                ch_data = class_ch_ts.get(cls, {}).get(ch, [])
+                if not ch_data: continue
+                # Average across repeats at each time point
+                max_len = max(len(s) for s in ch_data)
+                padded  = [s + [np.nan] * (max_len - len(s)) for s in ch_data]
+                mean_ts = np.nanmean(padded, axis=0)
+                std_ts  = np.nanstd(padded, axis=0)
+                t = np.arange(len(mean_ts))
+                ax.plot(t, mean_ts, color=palette[ci], lw=1.5, label=cls)
+                ax.fill_between(t, mean_ts - std_ts, mean_ts + std_ts,
+                                color=palette[ci], alpha=0.15)
+            ax.set_title(f"Ch{ch}", fontsize=9)
+            ax.set_xlabel("Time step", fontsize=7)
+            ax.set_ylabel("Response", fontsize=7)
+        axes[0, 0].legend(fontsize=7, loc="upper right")
+        plt.suptitle("Raw Sensor Transient Responses by Fermentation Class\n(Mean ± SD across samples)",
+                     fontweight="bold", fontsize=12)
+        plt.tight_layout()
+        plt.savefig(os.path.join(PLOTS_DIR, "00_raw_sensor_responses.png"))
+        plt.close()
+
+        # ── Figure 2: all 14 channels overlaid per class ──
+        fig, axes = plt.subplots(1, n_cls, figsize=(5 * n_cls, 4), sharey=False)
+        if n_cls == 1: axes = [axes]
+        ch_palette = sns.color_palette("husl", n_ch)
+        for ci, cls in enumerate(unique_classes):
+            ax = axes[ci]
+            for ch in range(n_ch):
+                ch_data = class_ch_ts.get(cls, {}).get(ch, [])
+                if not ch_data: continue
+                max_len = max(len(s) for s in ch_data)
+                padded  = [s + [np.nan] * (max_len - len(s)) for s in ch_data]
+                mean_ts = np.nanmean(padded, axis=0)
+                t = np.arange(len(mean_ts))
+                ax.plot(t, mean_ts, color=ch_palette[ch], lw=1.2, label=f"Ch{ch}")
+            ax.set_title(cls, fontsize=10, fontweight="bold")
+            ax.set_xlabel("Time step"); ax.set_ylabel("Sensor Response")
+        axes[-1].legend(fontsize=6, loc="upper right",
+                        ncol=2, bbox_to_anchor=(1.35, 1.0))
+        plt.suptitle("All Sensor Channels — Mean Response per Class",
+                     fontweight="bold", fontsize=12)
+        plt.tight_layout()
+        plt.savefig(os.path.join(PLOTS_DIR, "00b_all_channels_per_class.png"))
+        plt.close()
+
+        print(f"    Saved → 00_raw_sensor_responses.png | 00b_all_channels_per_class.png")
+
+    except Exception as e:
+        import traceback
+        print(f"    ⚠️  Raw sensor plot failed: {e}\n{traceback.format_exc()}")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1498,6 +1571,9 @@ def main():
 
         feature_cols = [f"ch{i}" for i in range(14)]
         class_labels  = sorted(train_data["class"].unique())
+
+        # ── Raw sensor time-series visualisation ──────────────
+        plot_raw_sensor_responses()
 
         # ── EDA ───────────────────────────────────────────────
         exploratory_data_analysis(train_data, test_data, feature_cols)

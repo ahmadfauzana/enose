@@ -1,0 +1,72 @@
+================================================================================
+E-NOSE COCOA BEAN FERMENTATION CLASSIFICATION
+Journal-Quality Analysis Report (SCIE/Q1 Standard)
+================================================================================
+Date: 2026-04-16 12:24:12
+Run timestamp: 20260416_122212
+Dataset type: all_data_enose
+
+DATASET SUMMARY
+----------------------------------------
+  ADB: 160 samples
+  UFB: 40 samples
+  WFB: 80 samples
+Total training: 280 | Test (unlabelled): 10
+Features: 14 sensor channels (ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13)
+
+BEST MODEL
+----------------------------------------
+  Model:         BiLSTM + Attention
+  Accuracy:      0.9524  95%CI [0.8929, 0.9881]
+  F1 (weighted): 0.9522
+  MCC:           0.9162
+  Cohen's κ:     0.9154
+  AUC (macro):   0.9876
+  Brier Score:   0.0345
+
+FULL MODEL RANKINGS
+----------------------------------------
+              Model  Accuracy  F1 (W)    MCC  Kappa (κ)    AUC  CV Mean  CV Std  95% CI Lo  95% CI Hi
+ BiLSTM + Attention    0.9524  0.9522 0.9162     0.9154 0.9876   0.9524  0.0000     0.8929     0.9881
+Transformer Encoder    0.9524  0.9518 0.9167     0.9157 0.9809   0.9524  0.0000     0.9048     0.9881
+ Conv1D + Attention    0.8929  0.8889 0.8143     0.8073 0.9709   0.8929  0.0000     0.8214     0.9524
+      Random Forest    0.7976  0.7863 0.6398     0.6186 0.8775   0.8667  0.0268     0.7024     0.8810
+K-Nearest Neighbors    0.7976  0.7821 0.6451     0.6136 0.8715   0.8679  0.0401     0.7024     0.8810
+          SVM (RBF)    0.7619  0.7321 0.5866     0.5380 0.8922   0.7940  0.0344     0.6667     0.8452
+
+STATISTICAL SIGNIFICANCE (McNemar p-values, top pairs)
+----------------------------------------
+            Model A             Model B  McNemar_p Significant_p05
+      Random Forest           SVM (RBF)     0.4497              No
+      Random Forest K-Nearest Neighbors     0.6831              No
+      Random Forest  Conv1D + Attention     0.0269             Yes
+      Random Forest  BiLSTM + Attention     0.0009             Yes
+      Random Forest Transformer Encoder     0.0009             Yes
+          SVM (RBF) K-Nearest Neighbors     0.3711              No
+          SVM (RBF)  Conv1D + Attention     0.0026             Yes
+          SVM (RBF)  BiLSTM + Attention     0.0002             Yes
+          SVM (RBF) Transformer Encoder     0.0002             Yes
+K-Nearest Neighbors  Conv1D + Attention     0.0269             Yes
+K-Nearest Neighbors  BiLSTM + Attention     0.0009             Yes
+K-Nearest Neighbors Transformer Encoder     0.0009             Yes
+ Conv1D + Attention  BiLSTM + Attention     0.1306              No
+ Conv1D + Attention Transformer Encoder     0.0736              No
+ BiLSTM + Attention Transformer Encoder     0.4795              No
+
+UNLABELLED SAMPLE PREDICTIONS
+----------------------------------------
+Sample_ID Consensus Agreement
+       X1       UFB       6/6
+       X2       ADB       6/6
+       X3       UFB       6/6
+       X4       WFB       6/6
+       X5       WFB       6/6
+       X6       UFB       6/6
+       X7       UFB       6/6
+       X8       ADB       3/6
+       X9       UFB       6/6
+      X10       WFB       6/6
+
+================================================================================
+END OF REPORT
+================================================================================

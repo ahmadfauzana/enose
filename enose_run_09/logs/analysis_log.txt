@@ -1,0 +1,128 @@
+E-NOSE COCOA BEAN CLASSIFICATION — JOURNAL-QUALITY ANALYSIS
+======================================================================
+Started: 2026-04-16 12:22:12
+Config: seed=42, CV=3×5, bootstrap_n=1000
+Output: enose_run_09
+
+Loading and preprocessing data...
+❌ Sheet '3_categories (2)': Worksheet named '3_categories (2)' not found
+❌ Sheet '6_categories': Worksheet named '6_categories' not found
+✅ Loaded sheet: 'all_data_enose'
+  Samples: 280 | Classes: ['WFB' 'ADB' 'UFB']
+❌ Test sheet 'unknown': Worksheet named 'unknown' not found
+✅ Test sheet 'unknown_data_enose': 10 samples
+
+  Plotting raw sensor response profiles ...
+    Saved → 00_raw_sensor_responses.png | 00b_all_channels_per_class.png
+
+============================================================
+EXPLORATORY DATA ANALYSIS
+============================================================
+  EDA figures saved to enose_run_09/plots
+  Train: (196, 14) | Val: (84, 14) | Test (unlabelled): (10, 14)
+
+  Manifold visualisations (PCA, LDA, t-SNE, UMAP) ...
+    Saved → manifold_projections.png
+
+============================================================
+MODEL TRAINING & EVALUATION
+============================================================
+
+  Training Random Forest ...
+    Val Acc=0.7976 [95%CI 0.7024-0.8810]  F1=0.7863  κ=0.6186  CV=0.8667±0.0268
+
+  Training SVM (RBF) ...
+    Val Acc=0.7619 [95%CI 0.6667-0.8452]  F1=0.7321  κ=0.5380  CV=0.7940±0.0344
+
+  Training K-Nearest Neighbors ...
+    Val Acc=0.7976 [95%CI 0.7024-0.8810]  F1=0.7821  κ=0.6136  CV=0.8679±0.0401
+
+========================================
+DEEP LEARNING TRAINING
+========================================
+
+  Training Conv1D + Attention ...
+  Ep 20/150  TL=0.4862  VL=0.4764  VAcc=0.8571
+  Ep 40/150  TL=0.3008  VL=0.6114  VAcc=0.8690
+  Early stop at ep 58
+    Best Val Acc=0.8929  F1=0.8889  κ=0.8073
+
+  Training BiLSTM + Attention ...
+  Ep 20/150  TL=0.2777  VL=0.6785  VAcc=0.7857
+  Ep 40/150  TL=0.1579  VL=0.3813  VAcc=0.8571
+  Ep 60/150  TL=0.0171  VL=0.2956  VAcc=0.9524
+  Early stop at ep 75
+    Best Val Acc=0.9524  F1=0.9522  κ=0.9154
+
+  Training Transformer Encoder ...
+  Ep 20/150  TL=0.2795  VL=0.7790  VAcc=0.8571
+  Ep 40/150  TL=0.2261  VL=0.6156  VAcc=0.8571
+  Ep 60/150  TL=0.0825  VL=0.2362  VAcc=0.9524
+  Early stop at ep 65
+    Best Val Acc=0.9524  F1=0.9518  κ=0.9157
+
+============================================================
+HYPERPARAMETER TUNING (RF, SVM, KNN)
+============================================================
+  Random Forest: best CV=0.8724  params={'max_depth': 10, 'min_samples_split': 2, 'n_estimators': 200}
+  SVM (RBF): best CV=0.9388  params={'C': 100, 'gamma': 'scale', 'kernel': 'rbf'}
+  K-Nearest Neighbors: best CV=0.8674  params={'metric': 'euclidean', 'n_neighbors': 5, 'weights': 'distance'}
+
+  Plotting confusion matrices ...
+    Saved → confusion_matrices.png
+
+  Plotting ROC curves ...
+    Saved → enose_run_09/plots/roc_curves.png
+
+  Calibration analysis ...
+    Saved → calibration_reliability.png | calibration_metrics.csv
+    Saved → dl_training_curves.png
+
+  Performance summary figure ...
+    Saved → accuracy_comparison_ci.png | radar_top5_models.png | full_performance_table.csv
+
+============================================================
+STATISTICAL SIGNIFICANCE TESTS
+============================================================
+  Saved pairwise significance table → enose_run_09/stats/significance_tests.csv
+  Significant pairs (p<0.05): 9 / 15
+
+  Per-class metrics table ...
+    Saved → per_class_metrics.csv (18 rows)
+  ⚠️  shap not installed — using permutation importance as proxy.
+
+  SHAP / feature attribution ...
+
+  Ablation study (leave-one-sensor-out) ...
+    Saved → ablation_study.png | ablation_study.csv
+
+============================================================
+PREDICTING UNLABELLED SAMPLES
+============================================================
+  Random Forest: avg confidence = 0.887
+  SVM (RBF): avg confidence = 0.841
+  K-Nearest Neighbors: avg confidence = 0.940
+  Conv1D + Attention: avg confidence = 0.965
+  BiLSTM + Attention: avg confidence = 0.961
+  Transformer Encoder: avg confidence = 0.976
+Sample_ID Consensus Agreement Random Forest SVM (RBF) K-Nearest Neighbors Conv1D + Attention BiLSTM + Attention
+       X1       UFB       6/6           UFB       UFB                 UFB                UFB                UFB
+       X2       ADB       6/6           ADB       ADB                 ADB                ADB                ADB
+       X3       UFB       6/6           UFB       UFB                 UFB                UFB                UFB
+       X4       WFB       6/6           WFB       WFB                 WFB                WFB                WFB
+       X5       WFB       6/6           WFB       WFB                 WFB                WFB                WFB
+       X6       UFB       6/6           UFB       UFB                 UFB                UFB                UFB
+       X7       UFB       6/6           UFB       UFB                 UFB                UFB                UFB
+       X8       ADB       3/6           ADB       ADB                 ADB                UFB                UFB
+       X9       UFB       6/6           UFB       UFB                 UFB                UFB                UFB
+      X10       WFB       6/6           WFB       WFB                 WFB                WFB                WFB
+
+✅ Journal summary report → enose_run_09/JOURNAL_SUMMARY_REPORT_20260416_122212.txt
+
+======================================================================
+ANALYSIS COMPLETE
+======================================================================
+  Results  → enose_run_09/
+  Figures  → enose_run_09/plots/  (14 files)
+  Tables   → enose_run_09/data/   (6 files)
+  Stats    → enose_run_09/stats/  (2 files)

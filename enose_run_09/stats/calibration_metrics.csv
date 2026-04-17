@@ -1,0 +1,7 @@
+model,ECE,brier
+Random Forest,0.077,0.1078
+SVM (RBF),0.0634,0.1092
+K-Nearest Neighbors,0.0667,0.1102
+Conv1D + Attention,0.0732,0.0692
+BiLSTM + Attention,0.0388,0.0345
+Transformer Encoder,0.0405,0.0359

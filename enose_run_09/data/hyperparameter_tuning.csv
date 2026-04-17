@@ -1,0 +1,4 @@
+model,best_cv_acc,best_params
+Random Forest,0.8724,"{'max_depth': 10, 'min_samples_split': 2, 'n_estimators': 200}"
+SVM (RBF),0.9388,"{'C': 100, 'gamma': 'scale', 'kernel': 'rbf'}"
+K-Nearest Neighbors,0.8674,"{'metric': 'euclidean', 'n_neighbors': 5, 'weights': 'distance'}"

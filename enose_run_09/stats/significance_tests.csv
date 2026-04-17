@@ -1,0 +1,16 @@
+Model A,Model B,McNemar_chi2,McNemar_p,Wilcoxon_stat,Wilcoxon_p,Significant_p05
+Random Forest,SVM (RBF),0.5714,0.4497,0.0,0.0006,No
+Random Forest,K-Nearest Neighbors,0.1667,0.6831,40.5,0.7253,No
+Random Forest,Conv1D + Attention,4.9,0.0269,3.0,0.0017,Yes
+Random Forest,BiLSTM + Attention,11.0769,0.0009,0.0,0.0006,Yes
+Random Forest,Transformer Encoder,11.0769,0.0009,0.0,0.0006,Yes
+SVM (RBF),K-Nearest Neighbors,0.8,0.3711,0.0,0.0006,No
+SVM (RBF),Conv1D + Attention,9.0909,0.0026,0.0,0.0006,Yes
+SVM (RBF),BiLSTM + Attention,14.0625,0.0002,0.0,0.0006,Yes
+SVM (RBF),Transformer Encoder,14.0625,0.0002,0.0,0.0006,Yes
+K-Nearest Neighbors,Conv1D + Attention,4.9,0.0269,4.0,0.0283,Yes
+K-Nearest Neighbors,BiLSTM + Attention,11.0769,0.0009,0.0,0.0006,Yes
+K-Nearest Neighbors,Transformer Encoder,11.0769,0.0009,0.0,0.0006,Yes
+Conv1D + Attention,BiLSTM + Attention,2.2857,0.1306,0.0,0.0001,No
+Conv1D + Attention,Transformer Encoder,3.2,0.0736,0.0,0.0001,No
+BiLSTM + Attention,Transformer Encoder,0.5,0.4795,0.0,N/A,No
